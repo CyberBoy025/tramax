@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+/*
+  Design tokens sourced from /ui.md (PROJECT_UI_DESIGN_SYSTEM).
+  Values marked [proposed] there are placeholders pending Tramax brand sign-off.
+  The site commits to a single dark "stage" theme by default, per ui.md's
+  design philosophy — no light/dark toggle is in scope.
+*/
+:root {
+  /* Color */
+  --color-bg-base: #0d0e0c;
+  --color-bg-raised: #171815;
+  --color-bg-sunken: #0a0b09;
+  --color-bg-inverse: #f6f4ec;
+  --color-accent-primary: #d9542e;
+  --color-accent-on-accent: #0d0e0c;
+  --color-accent-secondary: #c7e86b;
+  --color-text-primary: #f3f1e9;
+  --color-text-secondary: #a6a79c;
+  --color-text-muted: #6e6f65;
+  --color-text-on-light: #111210;
+  --color-border-default: #2a2b26;
+  --color-border-strong: #3e4038;
+  --color-state-success: #7fbe5a;
+  --color-state-warning: #e0a83c;
+  --color-state-error: #d9483b;
+  --color-state-info: #5b9bd1;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+  --space-4xl: 96px;
+  --space-5xl: 128px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  /* Elevation */
+  --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.24);
+  --elevation-2: 0 8px 24px rgba(0, 0, 0, 0.32);
+
+  /* Motion */
+  --motion-fast: 120ms ease-out;
+  --motion-normal: 200ms ease-out;
+  --motion-slow: 320ms ease-in-out;
+
+  /* Layout */
+  --layout-container-max: 1280px;
+}
+
+/* Admin Platform & Artist Portal density override, per ui.md */
+[data-surface="operational"] {
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+  --space-4xl: 48px;
+}
+
+@theme inline {
+  --color-bg-base: var(--color-bg-base);
+  --color-bg-raised: var(--color-bg-raised);
+  --color-bg-sunken: var(--color-bg-sunken);
+  --color-bg-inverse: var(--color-bg-inverse);
+  --color-accent-primary: var(--color-accent-primary);
+  --color-accent-on-accent: var(--color-accent-on-accent);
+  --color-accent-secondary: var(--color-accent-secondary);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-on-light: var(--color-text-on-light);
+  --color-border-default: var(--color-border-default);
+  --color-border-strong: var(--color-border-strong);
+  --color-state-success: var(--color-state-success);
+  --color-state-warning: var(--color-state-warning);
+  --color-state-error: var(--color-state-error);
+  --color-state-info: var(--color-state-info);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-pill: var(--radius-pill);
+
+  --font-display: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-accent: var(--font-accent), ui-serif, Georgia, serif;
+  --font-data: var(--font-data), ui-monospace, monospace;
+}
+
+body {
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  text-wrap: balance;
+}
+
+.font-accent {
+  font-family: var(--font-accent);
+  font-style: italic;
+}
+
+.font-data {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
