@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\Admin\ApplicationAdminController;
 use App\Http\Controllers\Api\Admin\ArtistAdminController;
+use App\Http\Controllers\Api\Admin\LicensingRequestAdminController;
+use App\Http\Controllers\Api\Admin\PartnerAdminController;
 use App\Http\Controllers\Api\Admin\ReleaseAdminController;
 use App\Http\Controllers\Api\Admin\RightsRecordAdminController;
 use App\Http\Controllers\Api\Admin\RoyaltyStatementAdminController;
@@ -26,8 +28,18 @@ $rightsRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::AR_MANAGER, Role::FINA
 $rightsWrite = [Role::SUPER_ADMIN, Role::AR_MANAGER];
 $royaltyRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::AR_MANAGER, Role::FINANCE];
 $royaltyWrite = [Role::SUPER_ADMIN, Role::FINANCE];
+// Licensing: no role has "Manage", only Super Admin has "Full" — so write is
+// Super-Admin-only, unlike Rights/Royalty where a second role could write.
+$licensingRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::AR_MANAGER, Role::FINANCE];
+$licensingWrite = [Role::SUPER_ADMIN];
+// Partnerships: the narrowest module built so far — only Management gets Read.
+$partnersRead = [Role::SUPER_ADMIN, Role::MANAGEMENT];
+$partnersWrite = [Role::SUPER_ADMIN];
 
-Route::prefix('v1')->group(function () use ($artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite) {
+Route::prefix('v1')->group(function () use (
+    $artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
+    $licensingRead, $licensingWrite, $partnersRead, $partnersWrite
+) {
     // Public-site endpoints per discovery.md §4.1 — no auth required.
     Route::get('artists', [ArtistController::class, 'index']);
     Route::get('artists/{slug}', [ArtistController::class, 'show']);
@@ -55,10 +67,11 @@ Route::prefix('v1')->group(function () use ($artistMgmtRead, $artistMgmtWrite, $
     });
 
     // Admin platform — gated per discovery.md §3's RBAC matrix, module by
-    // module. Licensing, Events, Store, Content, Partners, Users, and Audit
-    // Log admin endpoints are still a follow-up.
+    // module. Events, Store, Content, Users, and Audit Log admin endpoints
+    // are still a follow-up.
     Route::middleware('auth:sanctum')->prefix('admin')->group(function () use (
-        $artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite
+        $artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
+        $licensingRead, $licensingWrite, $partnersRead, $partnersWrite
     ) {
         // Artist Management (discovery.md §3) — Full: Super Admin, Manage: A&R, Read: Management.
         Route::middleware('role:'.implode(',', $artistMgmtRead))->group(function () {
@@ -103,6 +116,27 @@ Route::prefix('v1')->group(function () use ($artistMgmtRead, $artistMgmtWrite, $
             Route::post('royalty-statements', [RoyaltyStatementAdminController::class, 'store']);
             Route::patch('royalty-statements/{statement}', [RoyaltyStatementAdminController::class, 'update']);
             Route::delete('royalty-statements/{statement}', [RoyaltyStatementAdminController::class, 'destroy']);
+        });
+
+        // Licensing Requests (discovery.md §3) — Full: Super Admin only,
+        // Read: Management + A&R + Finance.
+        Route::middleware('role:'.implode(',', $licensingRead))->group(function () {
+            Route::get('licensing-requests', [LicensingRequestAdminController::class, 'index']);
+            Route::get('licensing-requests/{licensingRequest}', [LicensingRequestAdminController::class, 'show']);
+        });
+        Route::middleware('role:'.implode(',', $licensingWrite))->group(function () {
+            Route::patch('licensing-requests/{licensingRequest}/status', [LicensingRequestAdminController::class, 'updateStatus']);
+            Route::delete('licensing-requests/{licensingRequest}', [LicensingRequestAdminController::class, 'destroy']);
+        });
+
+        // Partnerships (discovery.md §3) — Full: Super Admin only, Read: Management only.
+        Route::middleware('role:'.implode(',', $partnersRead))->group(function () {
+            Route::get('partners', [PartnerAdminController::class, 'index']);
+            Route::get('partners/{partner}', [PartnerAdminController::class, 'show']);
+        });
+        Route::middleware('role:'.implode(',', $partnersWrite))->group(function () {
+            Route::patch('partners/{partner}/status', [PartnerAdminController::class, 'updateStatus']);
+            Route::delete('partners/{partner}', [PartnerAdminController::class, 'destroy']);
         });
     });
 });
