@@ -39,7 +39,10 @@ class ArtistProfile extends Model
 
     public function events(): BelongsToMany
     {
-        return $this->belongsToMany(Event::class);
+        // Explicit pivot table: Eloquent's naming convention would guess
+        // "artist_profile_event", but the migration names it "event_artist"
+        // (matching discovery.md §2's EVENT_ARTIST entity).
+        return $this->belongsToMany(Event::class, 'event_artist', 'artist_profile_id', 'event_id');
     }
 
     public function royaltyStatements(): HasMany

@@ -27,6 +27,7 @@ class Event extends Model
 
     public function artists(): BelongsToMany
     {
-        return $this->belongsToMany(ArtistProfile::class);
+        // Explicit pivot table — see the matching note on ArtistProfile::events().
+        return $this->belongsToMany(ArtistProfile::class, 'event_artist', 'event_id', 'artist_profile_id');
     }
 }

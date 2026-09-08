@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\ApplicationAdminController;
 use App\Http\Controllers\Api\Admin\ArtistAdminController;
+use App\Http\Controllers\Api\Admin\EventAdminController;
 use App\Http\Controllers\Api\Admin\LicensingRequestAdminController;
 use App\Http\Controllers\Api\Admin\PartnerAdminController;
 use App\Http\Controllers\Api\Admin\ReleaseAdminController;
@@ -35,10 +36,13 @@ $licensingWrite = [Role::SUPER_ADMIN];
 // Partnerships: the narrowest module built so far — only Management gets Read.
 $partnersRead = [Role::SUPER_ADMIN, Role::MANAGEMENT];
 $partnersWrite = [Role::SUPER_ADMIN];
+// Events & Bookings: Full: Super Admin, Manage: A&R, Read: Management + Content Manager.
+$eventsRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::AR_MANAGER, Role::CONTENT_MANAGER];
+$eventsWrite = [Role::SUPER_ADMIN, Role::AR_MANAGER];
 
 Route::prefix('v1')->group(function () use (
     $artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
-    $licensingRead, $licensingWrite, $partnersRead, $partnersWrite
+    $licensingRead, $licensingWrite, $partnersRead, $partnersWrite, $eventsRead, $eventsWrite
 ) {
     // Public-site endpoints per discovery.md §4.1 — no auth required.
     Route::get('artists', [ArtistController::class, 'index']);
@@ -67,11 +71,11 @@ Route::prefix('v1')->group(function () use (
     });
 
     // Admin platform — gated per discovery.md §3's RBAC matrix, module by
-    // module. Events, Store, Content, Users, and Audit Log admin endpoints
-    // are still a follow-up.
+    // module. Store, Content, Users, and Audit Log admin endpoints are
+    // still a follow-up.
     Route::middleware('auth:sanctum')->prefix('admin')->group(function () use (
         $artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
-        $licensingRead, $licensingWrite, $partnersRead, $partnersWrite
+        $licensingRead, $licensingWrite, $partnersRead, $partnersWrite, $eventsRead, $eventsWrite
     ) {
         // Artist Management (discovery.md §3) — Full: Super Admin, Manage: A&R, Read: Management.
         Route::middleware('role:'.implode(',', $artistMgmtRead))->group(function () {
@@ -143,6 +147,19 @@ Route::prefix('v1')->group(function () use (
         Route::middleware('role:'.implode(',', $partnersWrite))->group(function () {
             Route::patch('partners/{partner}/status', [PartnerAdminController::class, 'updateStatus']);
             Route::delete('partners/{partner}', [PartnerAdminController::class, 'destroy']);
+        });
+
+        // Events & Bookings (discovery.md §3) — Full: Super Admin, Manage:
+        // A&R, Read: Management + Content Manager. Admin index/show return
+        // every status, including Cancelled, unlike the public GET /events.
+        Route::middleware('role:'.implode(',', $eventsRead))->group(function () {
+            Route::get('events', [EventAdminController::class, 'index']);
+            Route::get('events/{event}', [EventAdminController::class, 'show']);
+        });
+        Route::middleware('role:'.implode(',', $eventsWrite))->group(function () {
+            Route::post('events', [EventAdminController::class, 'store']);
+            Route::patch('events/{event}', [EventAdminController::class, 'update']);
+            Route::delete('events/{event}', [EventAdminController::class, 'destroy']);
         });
     });
 });
