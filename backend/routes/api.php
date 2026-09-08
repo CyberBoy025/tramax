@@ -82,8 +82,14 @@ Route::prefix('v1')->group(function () use (
             Route::patch('applications/{application}/status', [ApplicationAdminController::class, 'updateStatus']);
         });
 
-        // Music Catalogue (discovery.md §3) — write only; read is served by
-        // the public GET /artists and /releases endpoints above.
+        // Music Catalogue (discovery.md §3). Admin index/show return every
+        // status (not just Published/non-Inactive, unlike the public
+        // GET /artists and /releases above) — an admin managing the
+        // catalogue needs to see drafts and inactive records too.
+        Route::middleware('role:'.implode(',', $artistMgmtRead))->group(function () {
+            Route::get('artists', [ArtistAdminController::class, 'index']);
+            Route::get('releases', [ReleaseAdminController::class, 'index']);
+        });
         Route::middleware('role:'.implode(',', $artistMgmtWrite))->group(function () {
             Route::post('artists', [ArtistAdminController::class, 'store']);
             Route::patch('artists/{artist}', [ArtistAdminController::class, 'update']);

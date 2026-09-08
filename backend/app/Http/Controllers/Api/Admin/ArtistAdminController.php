@@ -13,6 +13,14 @@ use Illuminate\Support\Str;
 // Destructive delete is Super Administrator only — "Full" vs "Manage" in that matrix.
 class ArtistAdminController extends Controller
 {
+    // Unlike the public GET /artists, this returns every status (including
+    // Inactive) — an admin managing the catalogue needs to see everything,
+    // not just what's shown on the public site.
+    public function index(): JsonResponse
+    {
+        return response()->json(['data' => ArtistProfile::query()->orderBy('artist_name')->get()]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([

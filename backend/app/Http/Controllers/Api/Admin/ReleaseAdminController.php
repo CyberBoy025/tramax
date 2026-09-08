@@ -13,6 +13,21 @@ use Illuminate\Support\Str;
 // ("Music Catalogue" row). Destructive delete is Super Administrator only.
 class ReleaseAdminController extends Controller
 {
+    // Unlike the public GET /releases (Published only), this returns every
+    // status — an admin needs to see Draft/Processing releases they're
+    // actively working on, not just what's live on the public site. Found
+    // via live testing: a release just created as Draft was invisible on
+    // this page when it read from the public endpoint.
+    public function index(): JsonResponse
+    {
+        $releases = Release::query()
+            ->with('artist:id,artist_name,slug')
+            ->orderByDesc('release_date')
+            ->get();
+
+        return response()->json(['data' => $releases]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
