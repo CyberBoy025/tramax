@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\ApplicationAdminController;
+use App\Http\Controllers\Api\Admin\AuditLogAdminController;
 use App\Http\Controllers\Api\Admin\ArtistAdminController;
 use App\Http\Controllers\Api\Admin\EventAdminController;
 use App\Http\Controllers\Api\Admin\LicensingRequestAdminController;
@@ -52,11 +53,14 @@ $contentWrite = [Role::SUPER_ADMIN, Role::CONTENT_MANAGER];
 // Users & Roles: Full: Super Admin only, every other role gets "—" — a
 // single tier covers both read and write since there's no partial access.
 $usersOnly = [Role::SUPER_ADMIN];
+// Audit Log: Full: Super Admin, Read: Management — read-only for both, so a
+// single tier covers it (no write endpoints exist; see AuditLogObserver).
+$auditLogRead = [Role::SUPER_ADMIN, Role::MANAGEMENT];
 
 Route::prefix('v1')->group(function () use (
     $artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
     $licensingRead, $licensingWrite, $partnersRead, $partnersWrite, $eventsRead, $eventsWrite,
-    $storeRead, $storeWrite, $contentRead, $contentWrite, $usersOnly
+    $storeRead, $storeWrite, $contentRead, $contentWrite, $usersOnly, $auditLogRead
 ) {
     // Public-site endpoints per discovery.md §4.1 — no auth required.
     Route::get('artists', [ArtistController::class, 'index']);
@@ -92,7 +96,7 @@ Route::prefix('v1')->group(function () use (
     Route::middleware('auth:sanctum')->prefix('admin')->group(function () use (
         $artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
         $licensingRead, $licensingWrite, $partnersRead, $partnersWrite, $eventsRead, $eventsWrite,
-        $storeRead, $storeWrite, $contentRead, $contentWrite, $usersOnly
+        $storeRead, $storeWrite, $contentRead, $contentWrite, $usersOnly, $auditLogRead
     ) {
         // Artist Management (discovery.md §3) — Full: Super Admin, Manage: A&R, Read: Management.
         Route::middleware('role:'.implode(',', $artistMgmtRead))->group(function () {
@@ -216,6 +220,12 @@ Route::prefix('v1')->group(function () use (
             Route::post('users', [UserAdminController::class, 'store']);
             Route::patch('users/{user}', [UserAdminController::class, 'update']);
             Route::delete('users/{user}', [UserAdminController::class, 'destroy']);
+        });
+
+        // Audit Log (discovery.md §3) — Full: Super Admin, Read: Management.
+        // Read-only; entries are written by AuditLogObserver, not this route.
+        Route::middleware('role:'.implode(',', $auditLogRead))->group(function () {
+            Route::get('audit-log', [AuditLogAdminController::class, 'index']);
         });
     });
 });
