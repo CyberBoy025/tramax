@@ -13,10 +13,12 @@ const ADMIN_ROLES = [
 ];
 
 // Nav mirrors the Admin Platform sitemap in discovery.md §1.3 and the
-// module list in discovery.md §2. Which items render for the signed-in
-// user is governed by the RBAC matrix in discovery.md §3 — not encoded
-// here yet, since only Applications/Artists/Releases have admin endpoints
-// built (see backend routes/api.php).
+// module list in discovery.md §2. Every item renders regardless of the
+// signed-in user's role — discovery.md §3's per-module gating happens
+// server-side (routes/api.php) and each page handles its own 403 rather
+// than the sidebar trying to predict access. Only Applications, Artists,
+// Releases, Rights, and Royalty have real pages/endpoints so far; the
+// rest still 404.
 const navGroups = [
   { items: [{ href: "/admin/dashboard", label: "Dashboard" }] },
   {
@@ -59,7 +61,7 @@ const navGroups = [
   },
 ];
 
-export default function AdminDashboardLayout({ children }: LayoutProps<"/admin/dashboard">) {
+export default function AdminProtectedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const user = useAuthGuard(ADMIN_ROLES, "/admin/login");
 

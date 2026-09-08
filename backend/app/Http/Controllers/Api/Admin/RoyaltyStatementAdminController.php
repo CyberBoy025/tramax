@@ -98,6 +98,18 @@ class RoyaltyStatementAdminController extends Controller
         $lineItems = $validated['line_items'] ?? null;
         unset($validated['line_items']);
 
+        // Money fields are 'nullable' so the frontend can leave them blank,
+        // but the DB columns default to 0, not NULL (a statement always has
+        // *a* revenue figure, even if it's 0 pending data entry) — an empty
+        // string becomes null via Laravel's ConvertEmptyStringsToNull
+        // middleware, and inserting that null against a NOT NULL column
+        // fails at the DB rather than the validator. Coalesce here instead.
+        foreach (['total_revenue', 'company_share', 'artist_share'] as $moneyField) {
+            if (array_key_exists($moneyField, $validated) && $validated[$moneyField] === null) {
+                $validated[$moneyField] = 0;
+            }
+        }
+
         return array_filter([
             'statement' => $validated,
             'line_items' => $lineItems,

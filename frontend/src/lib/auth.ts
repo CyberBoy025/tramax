@@ -79,6 +79,23 @@ export async function logout(): Promise<void> {
   }
 }
 
+// Unauthenticated GET for Client Components that need public data (e.g. an
+// artist picker in an admin form) — deliberately doesn't use lib/api.ts's
+// apiGet, which passes Next's `next: { revalidate }` cache option; that's a
+// Server Component / RSC-fetch concept, and passing it from a Client
+// Component fetch reliably failed to resolve here (confirmed live: the
+// exact same request worked fine with the option stripped).
+export async function publicGet<T>(path: string): Promise<T | null> {
+  try {
+    const res = await fetch(`${API_URL}/${path}`, { headers: { Accept: "application/json" } });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.data as T;
+  } catch {
+    return null;
+  }
+}
+
 // Authenticated fetch helpers for Client Components — attach the stored
 // Bearer token automatically. Returns null on any failure (network, 401,
 // 403, etc.) so callers can render an empty/denied state rather than crash.
@@ -97,29 +114,46 @@ export async function authGet<T>(path: string): Promise<T | null> {
   }
 }
 
-export async function authPatch<T>(
+export type AuthMutateResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; status: number; message: string };
+
+async function authMutate<T>(
+  method: "POST" | "PATCH" | "DELETE",
   path: string,
-  body: Record<string, unknown>
-): Promise<{ ok: true; data: T } | { ok: false; status: number }> {
+  body?: Record<string, unknown>
+): Promise<AuthMutateResult<T>> {
   const auth = getStoredAuth();
-  if (!auth) return { ok: false, status: 401 };
+  if (!auth) return { ok: false, status: 401, message: "Not signed in." };
   try {
     const res = await fetch(`${API_URL}/${path}`, {
-      method: "PATCH",
+      method,
       headers: {
         Authorization: `Bearer ${auth.token}`,
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify(body),
+      body: body ? JSON.stringify(body) : undefined,
     });
-    if (!res.ok) return { ok: false, status: res.status };
-    const json = await res.json();
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      const message =
+        json?.errors && Object.values(json.errors).flat()[0]
+          ? String(Object.values(json.errors).flat()[0])
+          : (json?.message ?? `Request failed (${res.status}).`);
+      return { ok: false, status: res.status, message };
+    }
     return { ok: true, data: json.data as T };
   } catch {
-    return { ok: false, status: 0 };
+    return { ok: false, status: 0, message: "Couldn't reach the server." };
   }
 }
+
+export const authPost = <T,>(path: string, body: Record<string, unknown>) =>
+  authMutate<T>("POST", path, body);
+export const authPatch = <T,>(path: string, body: Record<string, unknown>) =>
+  authMutate<T>("PATCH", path, body);
+export const authDelete = <T,>(path: string) => authMutate<T>("DELETE", path);
 
 // Reads the stored session via useSyncExternalStore rather than
 // useState+useEffect — this is external mutable state (localStorage), which
