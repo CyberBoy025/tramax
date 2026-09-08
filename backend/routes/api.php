@@ -9,7 +9,9 @@ use App\Http\Controllers\Api\Admin\PartnerAdminController;
 use App\Http\Controllers\Api\Admin\ProductAdminController;
 use App\Http\Controllers\Api\Admin\ReleaseAdminController;
 use App\Http\Controllers\Api\Admin\RightsRecordAdminController;
+use App\Http\Controllers\Api\Admin\RoleAdminController;
 use App\Http\Controllers\Api\Admin\RoyaltyStatementAdminController;
+use App\Http\Controllers\Api\Admin\UserAdminController;
 use App\Http\Controllers\Api\ApplicationController;
 use App\Http\Controllers\Api\ArtistController;
 use App\Http\Controllers\Api\AuthController;
@@ -47,11 +49,14 @@ $storeRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::CONTENT_MANAGER];
 $storeWrite = [Role::SUPER_ADMIN, Role::CONTENT_MANAGER];
 $contentRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::CONTENT_MANAGER];
 $contentWrite = [Role::SUPER_ADMIN, Role::CONTENT_MANAGER];
+// Users & Roles: Full: Super Admin only, every other role gets "—" — a
+// single tier covers both read and write since there's no partial access.
+$usersOnly = [Role::SUPER_ADMIN];
 
 Route::prefix('v1')->group(function () use (
     $artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
     $licensingRead, $licensingWrite, $partnersRead, $partnersWrite, $eventsRead, $eventsWrite,
-    $storeRead, $storeWrite, $contentRead, $contentWrite
+    $storeRead, $storeWrite, $contentRead, $contentWrite, $usersOnly
 ) {
     // Public-site endpoints per discovery.md §4.1 — no auth required.
     Route::get('artists', [ArtistController::class, 'index']);
@@ -83,11 +88,11 @@ Route::prefix('v1')->group(function () use (
     });
 
     // Admin platform — gated per discovery.md §3's RBAC matrix, module by
-    // module. Users and Audit Log admin endpoints are still a follow-up.
+    // module. Audit Log admin endpoints are still a follow-up.
     Route::middleware('auth:sanctum')->prefix('admin')->group(function () use (
         $artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
         $licensingRead, $licensingWrite, $partnersRead, $partnersWrite, $eventsRead, $eventsWrite,
-        $storeRead, $storeWrite, $contentRead, $contentWrite
+        $storeRead, $storeWrite, $contentRead, $contentWrite, $usersOnly
     ) {
         // Artist Management (discovery.md §3) — Full: Super Admin, Manage: A&R, Read: Management.
         Route::middleware('role:'.implode(',', $artistMgmtRead))->group(function () {
@@ -198,6 +203,19 @@ Route::prefix('v1')->group(function () use (
             Route::post('news', [NewsAdminController::class, 'store']);
             Route::patch('news/{newsPost}', [NewsAdminController::class, 'update']);
             Route::delete('news/{newsPost}', [NewsAdminController::class, 'destroy']);
+        });
+
+        // Users & Roles (discovery.md §3) — Full: Super Admin only, every
+        // other role gets "—". Roles are the fixed, code-defined set (read-
+        // only, just to populate the picker on the Users form).
+        Route::middleware('role:'.implode(',', $usersOnly))->group(function () {
+            Route::get('roles', [RoleAdminController::class, 'index']);
+
+            Route::get('users', [UserAdminController::class, 'index']);
+            Route::get('users/{user}', [UserAdminController::class, 'show']);
+            Route::post('users', [UserAdminController::class, 'store']);
+            Route::patch('users/{user}', [UserAdminController::class, 'update']);
+            Route::delete('users/{user}', [UserAdminController::class, 'destroy']);
         });
     });
 });
