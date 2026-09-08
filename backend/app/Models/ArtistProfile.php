@@ -41,4 +41,9 @@ class ArtistProfile extends Model
     {
         return $this->belongsToMany(Event::class);
     }
+
+    public function royaltyStatements(): HasMany
+    {
+        return $this->hasMany(RoyaltyStatement::class);
+    }
 }

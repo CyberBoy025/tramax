@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\Admin\ApplicationAdminController;
 use App\Http\Controllers\Api\Admin\ArtistAdminController;
 use App\Http\Controllers\Api\Admin\ReleaseAdminController;
+use App\Http\Controllers\Api\Admin\RightsRecordAdminController;
+use App\Http\Controllers\Api\Admin\RoyaltyStatementAdminController;
 use App\Http\Controllers\Api\ApplicationController;
 use App\Http\Controllers\Api\ArtistController;
 use App\Http\Controllers\Api\AuthController;
@@ -15,7 +17,17 @@ use App\Http\Controllers\Api\ReleaseController;
 use App\Models\Role;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1')->group(function () {
+// Named per-module role tiers, straight off the discovery.md §3 matrix —
+// each module's row has its own read set and write set, so a single
+// blanket admin gate would either over- or under-grant access.
+$artistMgmtRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::AR_MANAGER];
+$artistMgmtWrite = [Role::SUPER_ADMIN, Role::AR_MANAGER];
+$rightsRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::AR_MANAGER, Role::FINANCE];
+$rightsWrite = [Role::SUPER_ADMIN, Role::AR_MANAGER];
+$royaltyRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::AR_MANAGER, Role::FINANCE];
+$royaltyWrite = [Role::SUPER_ADMIN, Role::FINANCE];
+
+Route::prefix('v1')->group(function () use ($artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite) {
     // Public-site endpoints per discovery.md §4.1 — no auth required.
     Route::get('artists', [ArtistController::class, 'index']);
     Route::get('artists/{slug}', [ArtistController::class, 'show']);
@@ -42,17 +54,24 @@ Route::prefix('v1')->group(function () {
         Route::get('auth/me', [AuthController::class, 'me']);
     });
 
-    // Admin platform — gated per discovery.md §3's RBAC matrix. Only the
-    // Artist Management and Music Catalogue rows are built out so far;
-    // Rights, Royalty, Licensing, Events, Store, Content, Partners, Users,
-    // and Audit Log admin endpoints are a follow-up.
-    Route::middleware(['auth:sanctum', 'role:'.Role::SUPER_ADMIN.','.Role::AR_MANAGER])
-        ->prefix('admin')
-        ->group(function () {
+    // Admin platform — gated per discovery.md §3's RBAC matrix, module by
+    // module. Licensing, Events, Store, Content, Partners, Users, and Audit
+    // Log admin endpoints are still a follow-up.
+    Route::middleware('auth:sanctum')->prefix('admin')->group(function () use (
+        $artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite
+    ) {
+        // Artist Management (discovery.md §3) — Full: Super Admin, Manage: A&R, Read: Management.
+        Route::middleware('role:'.implode(',', $artistMgmtRead))->group(function () {
             Route::get('applications', [ApplicationAdminController::class, 'index']);
             Route::get('applications/{application}', [ApplicationAdminController::class, 'show']);
+        });
+        Route::middleware('role:'.implode(',', $artistMgmtWrite))->group(function () {
             Route::patch('applications/{application}/status', [ApplicationAdminController::class, 'updateStatus']);
+        });
 
+        // Music Catalogue (discovery.md §3) — write only; read is served by
+        // the public GET /artists and /releases endpoints above.
+        Route::middleware('role:'.implode(',', $artistMgmtWrite))->group(function () {
             Route::post('artists', [ArtistAdminController::class, 'store']);
             Route::patch('artists/{artist}', [ArtistAdminController::class, 'update']);
             Route::delete('artists/{artist}', [ArtistAdminController::class, 'destroy']);
@@ -61,4 +80,29 @@ Route::prefix('v1')->group(function () {
             Route::patch('releases/{release}', [ReleaseAdminController::class, 'update']);
             Route::delete('releases/{release}', [ReleaseAdminController::class, 'destroy']);
         });
+
+        // Rights Management (discovery.md §3) — Full: Super Admin, Manage: A&R,
+        // Read: Management + Finance.
+        Route::middleware('role:'.implode(',', $rightsRead))->group(function () {
+            Route::get('rights-records', [RightsRecordAdminController::class, 'index']);
+            Route::get('rights-records/{right}', [RightsRecordAdminController::class, 'show']);
+        });
+        Route::middleware('role:'.implode(',', $rightsWrite))->group(function () {
+            Route::post('rights-records', [RightsRecordAdminController::class, 'store']);
+            Route::patch('rights-records/{right}', [RightsRecordAdminController::class, 'update']);
+            Route::delete('rights-records/{right}', [RightsRecordAdminController::class, 'destroy']);
+        });
+
+        // Royalty Management (discovery.md §3) — Full: Super Admin, Manage:
+        // Finance, Read: Management + A&R.
+        Route::middleware('role:'.implode(',', $royaltyRead))->group(function () {
+            Route::get('royalty-statements', [RoyaltyStatementAdminController::class, 'index']);
+            Route::get('royalty-statements/{statement}', [RoyaltyStatementAdminController::class, 'show']);
+        });
+        Route::middleware('role:'.implode(',', $royaltyWrite))->group(function () {
+            Route::post('royalty-statements', [RoyaltyStatementAdminController::class, 'store']);
+            Route::patch('royalty-statements/{statement}', [RoyaltyStatementAdminController::class, 'update']);
+            Route::delete('royalty-statements/{statement}', [RoyaltyStatementAdminController::class, 'destroy']);
+        });
+    });
 });

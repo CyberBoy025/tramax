@@ -36,4 +36,9 @@ class Release extends Model
     {
         return $this->hasMany(Track::class);
     }
+
+    public function rightsRecords(): HasMany
+    {
+        return $this->hasMany(RightsRecord::class);
+    }
 }
