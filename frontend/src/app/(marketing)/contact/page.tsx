@@ -3,7 +3,13 @@ import { EnquiryForm } from "@/components/marketing/enquiry-form";
 
 export const metadata = { title: "Contact" };
 
-export default function ContactPage() {
+const CATEGORIES = ["General", "Booking", "Media"];
+
+export default async function ContactPage(props: PageProps<"/contact">) {
+  const params = await props.searchParams;
+  const requested = typeof params.category === "string" ? params.category : "General";
+  const category = CATEGORIES.includes(requested) ? requested : "General";
+
   return (
     <section className="mx-auto max-w-(--layout-container-max) px-6 py-20">
       <Kicker>Contact</Kicker>
@@ -14,8 +20,9 @@ export default function ContactPage() {
       </p>
       <div className="mt-10">
         <EnquiryForm
-          endpoint="/api/v1/contact"
+          endpoint="contact"
           submitLabel="Send Message"
+          extra={{ category }}
           fields={[
             { name: "name", label: "Your name" },
             { name: "email", label: "Email", type: "email" },

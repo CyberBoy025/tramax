@@ -1,30 +1,28 @@
 import { Kicker } from "@/components/ui/kicker";
 import { Card } from "@/components/ui/card";
 import { EnquiryForm } from "@/components/marketing/enquiry-form";
+import { apiGet, type Artist } from "@/lib/api";
 
 export const metadata = { title: "Artists" };
 
-// Sample rows — replaced by GET /api/v1/artists (discovery.md §4.1) once the backend exists.
-const artists = [
-  { slug: "sample-artist-one", name: "Sample Artist One", genre: "Afrobeats" },
-  { slug: "sample-artist-two", name: "Sample Artist Two", genre: "Amapiano" },
-  { slug: "sample-artist-three", name: "Sample Artist Three", genre: "R&B" },
-  { slug: "sample-artist-four", name: "Sample Artist Four", genre: "Hip-Hop" },
-];
+export default async function ArtistsPage() {
+  const artists = (await apiGet<Artist[]>("artists")) ?? [];
 
-export default function ArtistsPage() {
   return (
     <>
       <section className="mx-auto max-w-(--layout-container-max) px-6 py-20">
         <Kicker>Roster</Kicker>
         <h1 className="mt-3 text-4xl font-semibold sm:text-5xl">Artists</h1>
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {artists.length === 0 && (
+            <p className="text-sm text-[var(--color-text-secondary)]">No artists published yet.</p>
+          )}
           {artists.map((artist) => (
             <Card
               key={artist.slug}
               href={`/artists/${artist.slug}`}
-              title={artist.name}
-              meta={artist.genre}
+              title={artist.artist_name}
+              meta={artist.genre ?? undefined}
             />
           ))}
         </div>
@@ -41,7 +39,7 @@ export default function ArtistsPage() {
           </p>
           <div className="mt-8">
             <EnquiryForm
-              endpoint="/api/v1/applications"
+              endpoint="applications"
               submitLabel="Submit Application"
               fields={[
                 { name: "full_name", label: "Full name" },

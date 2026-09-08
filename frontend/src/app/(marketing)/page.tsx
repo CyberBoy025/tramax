@@ -1,22 +1,23 @@
 import { Kicker } from "@/components/ui/kicker";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { apiGet, type Artist, type Release } from "@/lib/api";
 
-const stats = [
-  { value: "—", label: "Artists" },
-  { value: "—", label: "Releases" },
-  { value: "—", label: "Cities Played" },
-  { value: "—", label: "Years Active" },
-];
+export default async function HomePage() {
+  const [artists, releases] = await Promise.all([
+    apiGet<Artist[]>("artists"),
+    apiGet<Release[]>("releases"),
+  ]);
 
-// Sample rows — replace with real artist/release data once Tramax supplies it (proposal §14).
-const featuredArtists = [
-  { slug: "sample-artist-one", name: "Sample Artist One", genre: "Afrobeats" },
-  { slug: "sample-artist-two", name: "Sample Artist Two", genre: "Amapiano" },
-  { slug: "sample-artist-three", name: "Sample Artist Three", genre: "R&B" },
-];
+  const stats = [
+    { value: artists ? String(artists.length) : "—", label: "Artists" },
+    { value: releases ? String(releases.length) : "—", label: "Releases" },
+    { value: "—", label: "Cities Played" },
+    { value: "—", label: "Years Active" },
+  ];
 
-export default function HomePage() {
+  const featuredArtists = (artists ?? []).slice(0, 3);
+
   return (
     <>
       <section className="mx-auto max-w-(--layout-container-max) px-6 pt-16 pb-24 sm:pt-24">
@@ -60,12 +61,17 @@ export default function HomePage() {
         <Kicker>Featured</Kicker>
         <h2 className="mt-3 text-3xl font-semibold sm:text-4xl">Artists on Tramax</h2>
         <div className="mt-8 grid gap-6 sm:grid-cols-3">
+          {featuredArtists.length === 0 && (
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              No artists published yet.
+            </p>
+          )}
           {featuredArtists.map((artist) => (
             <Card
               key={artist.slug}
               href={`/artists/${artist.slug}`}
-              title={artist.name}
-              meta={artist.genre}
+              title={artist.artist_name}
+              meta={artist.genre ?? undefined}
             />
           ))}
         </div>

@@ -2,8 +2,14 @@
 
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { apiPost } from "@/lib/api";
 
-type Field = { name: string; label: string; type?: "text" | "email" | "textarea" };
+type Field = {
+  name: string;
+  label: string;
+  type?: "text" | "email" | "textarea";
+  required?: boolean;
+};
 
 // Shared shape for the four enquiry-routing forms named in the proposal §4.1:
 // general/booking/media contact, artist submission, licensing, partnership.
@@ -11,18 +17,35 @@ export function EnquiryForm({
   fields,
   submitLabel,
   endpoint,
+  extra,
 }: {
   fields: Field[];
   submitLabel: string;
   endpoint: string;
+  /** Fixed fields sent alongside the form's own fields (e.g. category). */
+  extra?: Record<string, string>;
 }) {
-  const [status, setStatus] = useState<"idle" | "submitted">("idle");
+  const [status, setStatus] = useState<"idle" | "submitting" | "submitted" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    // Wired to a real endpoint once the Phase 4 API (see discovery.md §4.1) exists.
-    console.info(`submit → ${endpoint}`, Object.fromEntries(new FormData(event.currentTarget)));
-    setStatus("submitted");
+    setStatus("submitting");
+    setError(null);
+
+    const body = { ...extra, ...Object.fromEntries(new FormData(event.currentTarget)) };
+    const result = await apiPost(endpoint, body);
+
+    if (result.ok) {
+      setStatus("submitted");
+    } else {
+      setStatus("error");
+      setError(
+        result.errors
+          ? Object.values(result.errors).flat().join(" ")
+          : "Something went wrong sending this — please try again."
+      );
+    }
   }
 
   if (status === "submitted") {
@@ -41,7 +64,7 @@ export function EnquiryForm({
           {field.type === "textarea" ? (
             <textarea
               name={field.name}
-              required
+              required={field.required ?? true}
               rows={5}
               className="rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] p-3 text-sm font-normal outline-none focus:border-[var(--color-accent-primary)]"
             />
@@ -49,14 +72,15 @@ export function EnquiryForm({
             <input
               name={field.name}
               type={field.type ?? "text"}
-              required
+              required={field.required ?? true}
               className="h-11 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-3 text-sm font-normal outline-none focus:border-[var(--color-accent-primary)]"
             />
           )}
         </label>
       ))}
-      <Button type="submit" className="self-start">
-        {submitLabel}
+      {error && <p className="text-sm text-[var(--color-state-error)]">{error}</p>}
+      <Button type="submit" disabled={status === "submitting"} className="self-start">
+        {status === "submitting" ? "Sending…" : submitLabel}
       </Button>
     </form>
   );

@@ -13,9 +13,9 @@ const columns = [
   {
     heading: "Work with us",
     links: [
-      { href: "/artists/submit", label: "Submit your music" },
-      { href: "/contact?category=licensing", label: "Licensing" },
-      { href: "/contact?category=partnership", label: "Partnerships" },
+      { href: "/artists#submit", label: "Submit your music" },
+      { href: "/licensing", label: "Licensing" },
+      { href: "/partnerships", label: "Partnerships" },
     ],
   },
   {
