@@ -1,4 +1,8 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/ui/dashboard-shell";
+import { useAuthGuard, logout } from "@/lib/auth";
 
 // Nav mirrors the Artist Portal sitemap in discovery.md §1.2.
 const navGroups = [
@@ -33,8 +37,29 @@ const navGroups = [
 ];
 
 export default function PortalDashboardLayout({ children }: LayoutProps<"/portal/dashboard">) {
+  const router = useRouter();
+  const user = useAuthGuard(["Artist"], "/portal/login");
+
+  async function handleLogout() {
+    await logout();
+    router.replace("/portal/login");
+  }
+
+  if (!user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-[var(--color-text-secondary)]">
+        Checking session…
+      </div>
+    );
+  }
+
   return (
-    <DashboardShell brand="Tramax Portal" navGroups={navGroups} userLabel="Signed in as Artist">
+    <DashboardShell
+      brand="Tramax Portal"
+      navGroups={navGroups}
+      userLabel={`Signed in as ${user.name}`}
+      onLogout={handleLogout}
+    >
       {children}
     </DashboardShell>
   );

@@ -8,7 +8,11 @@ export default function PortalLoginPage() {
       <p className="font-[var(--font-display)] text-lg font-semibold">Tramax Portal</p>
       <h1 className="mt-2 text-2xl font-semibold">Artist Sign In</h1>
       <div className="mt-8">
-        <LoginForm endpoint="/api/v1/auth/login" />
+        <LoginForm
+          allowedRoles={["Artist"]}
+          redirectTo="/portal/dashboard"
+          wrongAreaMessage="This account isn't an artist account — use the admin login instead."
+        />
       </div>
     </div>
   );

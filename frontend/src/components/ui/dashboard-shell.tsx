@@ -7,11 +7,13 @@ export function DashboardShell({
   brand,
   navGroups,
   userLabel,
+  onLogout,
   children,
 }: {
   brand: string;
   navGroups: { heading?: string; items: { href: string; label: string }[] }[];
   userLabel: string;
+  onLogout?: () => void;
   children: React.ReactNode;
 }) {
   return (
@@ -38,9 +40,18 @@ export function DashboardShell({
             </div>
           ))}
         </nav>
-        <p className="border-t border-[var(--color-border-default)] pt-[var(--space-md)] text-xs text-[var(--color-text-muted)]">
-          {userLabel}
-        </p>
+        <div className="flex flex-col gap-2 border-t border-[var(--color-border-default)] pt-[var(--space-md)]">
+          <p className="text-xs text-[var(--color-text-muted)]">{userLabel}</p>
+          {onLogout && (
+            <button
+              type="button"
+              onClick={onLogout}
+              className="self-start text-xs font-medium text-[var(--color-accent-primary)] hover:underline"
+            >
+              Log out
+            </button>
+          )}
+        </div>
       </aside>
       <main className="flex-1 p-[var(--space-2xl)]">{children}</main>
     </div>
