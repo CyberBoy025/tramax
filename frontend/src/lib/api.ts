@@ -80,3 +80,13 @@ export type NewsPost = {
   published_at: string | null;
   body?: string | null;
 };
+
+export type Product = {
+  id: number;
+  title: string;
+  slug: string;
+  price: string | null;
+  image_url: string | null;
+  category: string | null;
+  description?: string | null;
+};

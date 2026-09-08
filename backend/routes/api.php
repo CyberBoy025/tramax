@@ -4,7 +4,9 @@ use App\Http\Controllers\Api\Admin\ApplicationAdminController;
 use App\Http\Controllers\Api\Admin\ArtistAdminController;
 use App\Http\Controllers\Api\Admin\EventAdminController;
 use App\Http\Controllers\Api\Admin\LicensingRequestAdminController;
+use App\Http\Controllers\Api\Admin\NewsAdminController;
 use App\Http\Controllers\Api\Admin\PartnerAdminController;
+use App\Http\Controllers\Api\Admin\ProductAdminController;
 use App\Http\Controllers\Api\Admin\ReleaseAdminController;
 use App\Http\Controllers\Api\Admin\RightsRecordAdminController;
 use App\Http\Controllers\Api\Admin\RoyaltyStatementAdminController;
@@ -16,6 +18,7 @@ use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\LicensingRequestController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\PartnerController;
+use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ReleaseController;
 use App\Models\Role;
 use Illuminate\Support\Facades\Route;
@@ -39,10 +42,16 @@ $partnersWrite = [Role::SUPER_ADMIN];
 // Events & Bookings: Full: Super Admin, Manage: A&R, Read: Management + Content Manager.
 $eventsRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::AR_MANAGER, Role::CONTENT_MANAGER];
 $eventsWrite = [Role::SUPER_ADMIN, Role::AR_MANAGER];
+// Store & Content Management: Full: Super Admin, Manage: Content Manager, Read: Management.
+$storeRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::CONTENT_MANAGER];
+$storeWrite = [Role::SUPER_ADMIN, Role::CONTENT_MANAGER];
+$contentRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::CONTENT_MANAGER];
+$contentWrite = [Role::SUPER_ADMIN, Role::CONTENT_MANAGER];
 
 Route::prefix('v1')->group(function () use (
     $artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
-    $licensingRead, $licensingWrite, $partnersRead, $partnersWrite, $eventsRead, $eventsWrite
+    $licensingRead, $licensingWrite, $partnersRead, $partnersWrite, $eventsRead, $eventsWrite,
+    $storeRead, $storeWrite, $contentRead, $contentWrite
 ) {
     // Public-site endpoints per discovery.md §4.1 — no auth required.
     Route::get('artists', [ArtistController::class, 'index']);
@@ -56,6 +65,9 @@ Route::prefix('v1')->group(function () use (
 
     Route::get('news', [NewsController::class, 'index']);
     Route::get('news/{slug}', [NewsController::class, 'show']);
+
+    Route::get('products', [ProductController::class, 'index']);
+    Route::get('products/{slug}', [ProductController::class, 'show']);
 
     Route::post('applications', [ApplicationController::class, 'store']);
     Route::post('licensing-requests', [LicensingRequestController::class, 'store']);
@@ -71,11 +83,11 @@ Route::prefix('v1')->group(function () use (
     });
 
     // Admin platform — gated per discovery.md §3's RBAC matrix, module by
-    // module. Store, Content, Users, and Audit Log admin endpoints are
-    // still a follow-up.
+    // module. Users and Audit Log admin endpoints are still a follow-up.
     Route::middleware('auth:sanctum')->prefix('admin')->group(function () use (
         $artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
-        $licensingRead, $licensingWrite, $partnersRead, $partnersWrite, $eventsRead, $eventsWrite
+        $licensingRead, $licensingWrite, $partnersRead, $partnersWrite, $eventsRead, $eventsWrite,
+        $storeRead, $storeWrite, $contentRead, $contentWrite
     ) {
         // Artist Management (discovery.md §3) — Full: Super Admin, Manage: A&R, Read: Management.
         Route::middleware('role:'.implode(',', $artistMgmtRead))->group(function () {
@@ -160,6 +172,32 @@ Route::prefix('v1')->group(function () use (
             Route::post('events', [EventAdminController::class, 'store']);
             Route::patch('events/{event}', [EventAdminController::class, 'update']);
             Route::delete('events/{event}', [EventAdminController::class, 'destroy']);
+        });
+
+        // Store (discovery.md §3) — Full: Super Admin, Manage: Content
+        // Manager, Read: Management. Admin index/show return Draft items
+        // too, unlike the public GET /products.
+        Route::middleware('role:'.implode(',', $storeRead))->group(function () {
+            Route::get('products', [ProductAdminController::class, 'index']);
+            Route::get('products/{product}', [ProductAdminController::class, 'show']);
+        });
+        Route::middleware('role:'.implode(',', $storeWrite))->group(function () {
+            Route::post('products', [ProductAdminController::class, 'store']);
+            Route::patch('products/{product}', [ProductAdminController::class, 'update']);
+            Route::delete('products/{product}', [ProductAdminController::class, 'destroy']);
+        });
+
+        // Content Management (discovery.md §3) — Full: Super Admin, Manage:
+        // Content Manager, Read: Management. Scoped to News (§2's only
+        // modeled content entity); admin index/show return Draft posts too.
+        Route::middleware('role:'.implode(',', $contentRead))->group(function () {
+            Route::get('news', [NewsAdminController::class, 'index']);
+            Route::get('news/{newsPost}', [NewsAdminController::class, 'show']);
+        });
+        Route::middleware('role:'.implode(',', $contentWrite))->group(function () {
+            Route::post('news', [NewsAdminController::class, 'store']);
+            Route::patch('news/{newsPost}', [NewsAdminController::class, 'update']);
+            Route::delete('news/{newsPost}', [NewsAdminController::class, 'destroy']);
         });
     });
 });
