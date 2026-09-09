@@ -229,5 +229,4 @@ Then in cPanel → **Setup Node.js App**, click **Restart** on the frontend app 
 ## What staging does *not* have yet
 
 - Automated deploys — every update above is manual. A GitHub Actions SSH-deploy workflow is a reasonable follow-up once this manual path is confirmed working.
-- Rate limiting on the public unauthenticated form endpoints (`contact`, `applications`, `licensing-requests`, `partners`) — open to spam right now, staging or not.
 - A CDN/S3 media disk — uploads work (§ the media upload pipeline) but live on this server's local disk, not yet behind a CDN. `FILESYSTEM_DISK=s3` in `config/filesystems.php` is ready for that when it's time; today it stays `local`.
