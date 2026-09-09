@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Admin\NewsAdminController;
 use App\Http\Controllers\Api\Admin\PartnerAdminController;
 use App\Http\Controllers\Api\Admin\ProductAdminController;
 use App\Http\Controllers\Api\Admin\ReleaseAdminController;
+use App\Http\Controllers\Api\Admin\ReportsAdminController;
 use App\Http\Controllers\Api\Admin\RightsRecordAdminController;
 use App\Http\Controllers\Api\Admin\RoleAdminController;
 use App\Http\Controllers\Api\Admin\RoyaltyStatementAdminController;
@@ -56,11 +57,15 @@ $usersOnly = [Role::SUPER_ADMIN];
 // Audit Log: Full: Super Admin, Read: Management — read-only for both, so a
 // single tier covers it (no write endpoints exist; see AuditLogObserver).
 $auditLogRead = [Role::SUPER_ADMIN, Role::MANAGEMENT];
+// Analytics & Reports: Full: Super Admin, Read: Management, Read (own
+// scope): A&R + Finance — the route only gates who's allowed in at all;
+// ReportsAdminController::summary() branches by role to scope the data.
+$reportsRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::AR_MANAGER, Role::FINANCE];
 
 Route::prefix('v1')->group(function () use (
     $artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
     $licensingRead, $licensingWrite, $partnersRead, $partnersWrite, $eventsRead, $eventsWrite,
-    $storeRead, $storeWrite, $contentRead, $contentWrite, $usersOnly, $auditLogRead
+    $storeRead, $storeWrite, $contentRead, $contentWrite, $usersOnly, $auditLogRead, $reportsRead
 ) {
     // Public-site endpoints per discovery.md §4.1 — no auth required.
     Route::get('artists', [ArtistController::class, 'index']);
@@ -96,7 +101,7 @@ Route::prefix('v1')->group(function () use (
     Route::middleware('auth:sanctum')->prefix('admin')->group(function () use (
         $artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
         $licensingRead, $licensingWrite, $partnersRead, $partnersWrite, $eventsRead, $eventsWrite,
-        $storeRead, $storeWrite, $contentRead, $contentWrite, $usersOnly, $auditLogRead
+        $storeRead, $storeWrite, $contentRead, $contentWrite, $usersOnly, $auditLogRead, $reportsRead
     ) {
         // Artist Management (discovery.md §3) — Full: Super Admin, Manage: A&R, Read: Management.
         Route::middleware('role:'.implode(',', $artistMgmtRead))->group(function () {
@@ -226,6 +231,12 @@ Route::prefix('v1')->group(function () use (
         // Read-only; entries are written by AuditLogObserver, not this route.
         Route::middleware('role:'.implode(',', $auditLogRead))->group(function () {
             Route::get('audit-log', [AuditLogAdminController::class, 'index']);
+        });
+
+        // Analytics & Reports (discovery.md §3) — Full: Super Admin, Read:
+        // Management, Read (own scope): A&R + Finance.
+        Route::middleware('role:'.implode(',', $reportsRead))->group(function () {
+            Route::get('reports/summary', [ReportsAdminController::class, 'summary']);
         });
     });
 });
