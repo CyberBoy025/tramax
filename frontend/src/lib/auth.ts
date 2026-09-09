@@ -155,6 +155,40 @@ export const authPatch = <T,>(path: string, body: Record<string, unknown>) =>
   authMutate<T>("PATCH", path, body);
 export const authDelete = <T,>(path: string) => authMutate<T>("DELETE", path);
 
+// Multipart upload for POST /admin/uploads and /portal/uploads — deliberately
+// not routed through authMutate, since a JSON body and a File body need
+// different headers (no explicit Content-Type here: the browser sets the
+// multipart boundary itself when the body is a FormData).
+export async function authUpload<T>(
+  path: string,
+  file: File,
+  context: string
+): Promise<AuthMutateResult<T>> {
+  const auth = getStoredAuth();
+  if (!auth) return { ok: false, status: 401, message: "Not signed in." };
+  try {
+    const body = new FormData();
+    body.append("file", file);
+    body.append("context", context);
+    const res = await fetch(`${API_URL}/${path}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${auth.token}`, Accept: "application/json" },
+      body,
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      const message =
+        json?.errors && Object.values(json.errors).flat()[0]
+          ? String(Object.values(json.errors).flat()[0])
+          : (json?.message ?? `Upload failed (${res.status}).`);
+      return { ok: false, status: res.status, message };
+    }
+    return { ok: true, data: json.data as T };
+  } catch {
+    return { ok: false, status: 0, message: "Couldn't reach the server." };
+  }
+}
+
 // Reads the stored session via useSyncExternalStore rather than
 // useState+useEffect — this is external mutable state (localStorage), which
 // is exactly what that hook is for: it avoids a hydration mismatch (server

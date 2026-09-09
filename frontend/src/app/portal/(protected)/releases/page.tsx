@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { authGet, authPost } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ImageUploadField } from "@/components/ui/image-upload-field";
 
 type Release = {
   id: number;
@@ -115,13 +116,12 @@ export default function PortalReleasesPage() {
               className="h-10 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-2 text-sm"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium">
-            Cover Art URL
-            <input
-              name="cover_art_url"
-              className="h-10 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-2 text-sm"
-            />
-          </label>
+          <ImageUploadField
+            name="cover_art_url"
+            label="Cover Art"
+            uploadPath="portal/uploads"
+            context="releases"
+          />
           <div className="sm:col-span-2">
             <Button type="submit" disabled={submitting}>
               {submitting ? "Submitting…" : "Submit for Review"}

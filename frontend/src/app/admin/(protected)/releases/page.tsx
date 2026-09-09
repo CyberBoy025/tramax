@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { authGet, authPost, authPatch, authDelete, getStoredAuth, publicGet } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ImageUploadField } from "@/components/ui/image-upload-field";
 
 type Release = {
   id: number;
@@ -12,6 +13,7 @@ type Release = {
   type: string;
   release_date: string | null;
   status?: string;
+  cover_art_url?: string | null;
   artist: { id: number; artist_name: string; slug: string };
 };
 
@@ -229,6 +231,13 @@ export default function AdminReleasesPage() {
                 {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </label>
+            <ImageUploadField
+              name="cover_art_url"
+              label="Cover Art"
+              defaultValue={editing?.cover_art_url}
+              uploadPath="admin/uploads"
+              context="releases"
+            />
             <div className="flex items-end sm:col-span-2">
               <Button type="submit" disabled={submitting}>
                 {submitting ? "Saving…" : editing ? "Save Changes" : "Add Release"}

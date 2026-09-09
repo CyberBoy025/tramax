@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\LicensingRequestController;
+use App\Http\Controllers\Api\MediaUploadController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\PartnerController;
 use App\Http\Controllers\Api\Portal\PortalEventController;
@@ -70,6 +71,11 @@ $auditLogRead = [Role::SUPER_ADMIN, Role::MANAGEMENT];
 // scope): A&R + Finance — the route only gates who's allowed in at all;
 // ReportsAdminController::summary() branches by role to scope the data.
 $reportsRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::AR_MANAGER, Role::FINANCE];
+// Media uploads: whoever can create/edit an image-bearing record at all —
+// the union of every write tier across Artist Management, Music Catalogue,
+// Store, and Content Management. MediaUploadController further restricts
+// which upload *context* each of these roles may use.
+$mediaUpload = [Role::SUPER_ADMIN, Role::AR_MANAGER, Role::CONTENT_MANAGER];
 
 // Legend (discovery.md §3): "Manage" = create/read/update, no destructive
 // delete — only "Full" gets delete. Every module below with a Manage-tier
@@ -78,7 +84,7 @@ $reportsRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::AR_MANAGER, Role::FIN
 Route::prefix('v1')->group(function () use (
     $artistMgmtRead, $artistMgmtWrite, $catalogueRead, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
     $licensingRead, $licensingWrite, $partnersRead, $partnersWrite, $eventsRead, $eventsWrite,
-    $storeRead, $storeWrite, $contentRead, $contentWrite, $usersOnly, $auditLogRead, $reportsRead
+    $storeRead, $storeWrite, $contentRead, $contentWrite, $usersOnly, $auditLogRead, $reportsRead, $mediaUpload
 ) {
     // Public-site endpoints per discovery.md §4.1 — no auth required.
     Route::get('artists', [ArtistController::class, 'index']);
@@ -114,7 +120,7 @@ Route::prefix('v1')->group(function () use (
     Route::middleware('auth:sanctum')->prefix('admin')->group(function () use (
         $artistMgmtRead, $artistMgmtWrite, $catalogueRead, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
         $licensingRead, $licensingWrite, $partnersRead, $partnersWrite, $eventsRead, $eventsWrite,
-        $storeRead, $storeWrite, $contentRead, $contentWrite, $usersOnly, $auditLogRead, $reportsRead
+        $storeRead, $storeWrite, $contentRead, $contentWrite, $usersOnly, $auditLogRead, $reportsRead, $mediaUpload
     ) {
         // Artist Management (discovery.md §3) — Full: Super Admin, Manage: A&R, Read: Management.
         Route::middleware('role:'.implode(',', $artistMgmtRead))->group(function () {
@@ -267,6 +273,13 @@ Route::prefix('v1')->group(function () use (
         Route::middleware('role:'.implode(',', $reportsRead))->group(function () {
             Route::get('reports/summary', [ReportsAdminController::class, 'summary']);
         });
+
+        // Media uploads (README.md §4) — every admin role that writes to an
+        // image-bearing module; MediaUploadController narrows further by
+        // upload context.
+        Route::middleware('role:'.implode(',', $mediaUpload))->group(function () {
+            Route::post('uploads', [MediaUploadController::class, 'store']);
+        });
     });
 
     // Artist Portal — every "Own" cell in discovery.md §3 belongs to the
@@ -287,5 +300,7 @@ Route::prefix('v1')->group(function () use (
 
         Route::get('notifications', [PortalNotificationController::class, 'index']);
         Route::patch('notifications/{notification}/read', [PortalNotificationController::class, 'markRead']);
+
+        Route::post('uploads', [MediaUploadController::class, 'store']);
     });
 });

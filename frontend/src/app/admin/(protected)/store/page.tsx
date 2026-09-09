@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { authGet, authPost, authPatch, authDelete, getStoredAuth } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ImageUploadField } from "@/components/ui/image-upload-field";
 
 type Product = {
   id: number;
@@ -203,14 +204,13 @@ export default function AdminStorePage() {
                 {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium">
-              Image URL
-              <input
-                name="image_url"
-                defaultValue={editing?.image_url ?? ""}
-                className="h-10 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-2 text-sm"
-              />
-            </label>
+            <ImageUploadField
+              name="image_url"
+              label="Image"
+              defaultValue={editing?.image_url}
+              uploadPath="admin/uploads"
+              context="products"
+            />
             <label className="flex flex-col gap-1 text-xs font-medium sm:col-span-2">
               Description
               <textarea

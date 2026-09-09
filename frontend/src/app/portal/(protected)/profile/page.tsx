@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { authGet, authPatch } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ImageUploadField } from "@/components/ui/image-upload-field";
 
 type Profile = {
   id: number;
@@ -87,14 +88,13 @@ export default function PortalProfilePage() {
             className="h-10 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-2 text-sm"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs font-medium">
-          Photo URL
-          <input
-            name="photo_url"
-            defaultValue={profile.photo_url ?? ""}
-            className="h-10 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-2 text-sm"
-          />
-        </label>
+        <ImageUploadField
+          name="photo_url"
+          label="Photo"
+          defaultValue={profile.photo_url}
+          uploadPath="portal/uploads"
+          context="artists"
+        />
         <label className="flex flex-col gap-1 text-xs font-medium">
           Biography
           <textarea

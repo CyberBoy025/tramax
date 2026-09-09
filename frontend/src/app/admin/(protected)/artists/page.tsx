@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { authGet, authPost, authPatch, authDelete, getStoredAuth } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ImageUploadField } from "@/components/ui/image-upload-field";
 
 type Artist = {
   id: number;
@@ -191,14 +192,13 @@ export default function AdminArtistsPage() {
                 className="rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-2 py-2 text-sm"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium">
-              Photo URL
-              <input
-                name="photo_url"
-                defaultValue={editing?.photo_url ?? ""}
-                className="h-10 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-2 text-sm"
-              />
-            </label>
+            <ImageUploadField
+              name="photo_url"
+              label="Photo"
+              defaultValue={editing?.photo_url}
+              uploadPath="admin/uploads"
+              context="artists"
+            />
             <label className="flex flex-col gap-1 text-xs font-medium">
               Status
               <select

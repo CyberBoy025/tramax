@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { authGet, authPost, authPatch, authDelete, getStoredAuth } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ImageUploadField } from "@/components/ui/image-upload-field";
 
 type NewsPost = {
   id: number;
@@ -172,14 +173,13 @@ export default function AdminContentPage() {
                 className="h-10 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-2 text-sm"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium">
-              Cover Image URL
-              <input
-                name="cover_image"
-                defaultValue={editing?.cover_image ?? ""}
-                className="h-10 rounded-[var(--radius-sm)] border border-[var(--color-border-default)] bg-[var(--color-bg-base)] px-2 text-sm"
-              />
-            </label>
+            <ImageUploadField
+              name="cover_image"
+              label="Cover Image"
+              defaultValue={editing?.cover_image}
+              uploadPath="admin/uploads"
+              context="news"
+            />
             <label className="flex flex-col gap-1 text-xs font-medium">
               Body
               <textarea
