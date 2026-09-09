@@ -48,8 +48,21 @@ jobs:
       - name: Run test suite
         # phpunit.xml already points DB_CONNECTION/DB_DATABASE at an
         # in-memory sqlite database for the testing environment — no
-        # services or migrations to provision here.
-        run: php artisan test
+        # services or migrations to provision here. Piped through tee (not
+        # just run directly) so the output is still on hand for the summary
+        # step below even when this step fails; GitHub Actions runs `run:`
+        # blocks with `pipefail`, so the pipe doesn't swallow a nonzero exit.
+        run: php artisan test --colors=never | tee test-output.txt
+
+      - name: Publish test output to job summary
+        if: always()
+        run: |
+          {
+            echo '### Backend test output'
+            echo '```'
+            cat test-output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   frontend:
     name: Frontend (lint + build)
