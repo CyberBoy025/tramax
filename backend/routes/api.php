@@ -102,14 +102,19 @@ Route::prefix('v1')->group(function () use (
     Route::get('products', [ProductController::class, 'index']);
     Route::get('products/{slug}', [ProductController::class, 'show']);
 
-    Route::post('applications', [ApplicationController::class, 'store']);
-    Route::post('licensing-requests', [LicensingRequestController::class, 'store']);
-    Route::post('partners', [PartnerController::class, 'store']);
-    Route::post('contact', [ContactController::class, 'store']);
+    // Rate limited (AppServiceProvider::boot()'s "public-forms" limiter) —
+    // unauthenticated, so IP is the only signal available to throttle on.
+    Route::middleware('throttle:public-forms')->group(function () {
+        Route::post('applications', [ApplicationController::class, 'store']);
+        Route::post('licensing-requests', [LicensingRequestController::class, 'store']);
+        Route::post('partners', [PartnerController::class, 'store']);
+        Route::post('contact', [ContactController::class, 'store']);
+    });
 
     // Auth — shared login for every role (discovery.md §3); the issued
     // token's user->role determines what it can subsequently reach.
-    Route::post('auth/login', [AuthController::class, 'login']);
+    // Rate limited by IP+email (the "login" limiter) against brute force.
+    Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('auth/me', [AuthController::class, 'me']);
