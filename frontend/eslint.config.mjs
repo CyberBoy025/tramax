@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // cPanel Passenger's Node.js App entry point — plain CommonJS, run
+    // directly by Passenger with no build step, so it can't use ESM import.
+    "server.js",
   ]),
 ]);
 
