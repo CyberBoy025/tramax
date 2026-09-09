@@ -22,6 +22,11 @@ use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\LicensingRequestController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\PartnerController;
+use App\Http\Controllers\Api\Portal\PortalEventController;
+use App\Http\Controllers\Api\Portal\PortalNotificationController;
+use App\Http\Controllers\Api\Portal\PortalProfileController;
+use App\Http\Controllers\Api\Portal\PortalReleaseController;
+use App\Http\Controllers\Api\Portal\PortalRoyaltyStatementController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ReleaseController;
 use App\Models\Role;
@@ -262,5 +267,25 @@ Route::prefix('v1')->group(function () use (
         Route::middleware('role:'.implode(',', $reportsRead))->group(function () {
             Route::get('reports/summary', [ReportsAdminController::class, 'summary']);
         });
+    });
+
+    // Artist Portal — every "Own" cell in discovery.md §3 belongs to the
+    // Artist role alone, so a single role gate covers the whole group
+    // (unlike /admin, there's no second role sharing partial access here).
+    // Each controller scopes its query to $request->user()->artistProfile
+    // rather than trusting any id from the request.
+    Route::middleware(['auth:sanctum', 'role:'.Role::ARTIST])->prefix('portal')->group(function () {
+        Route::get('profile', [PortalProfileController::class, 'show']);
+        Route::patch('profile', [PortalProfileController::class, 'update']);
+
+        Route::get('releases', [PortalReleaseController::class, 'index']);
+        Route::post('releases', [PortalReleaseController::class, 'store']);
+
+        Route::get('royalty-statements', [PortalRoyaltyStatementController::class, 'index']);
+
+        Route::get('events', [PortalEventController::class, 'index']);
+
+        Route::get('notifications', [PortalNotificationController::class, 'index']);
+        Route::patch('notifications/{notification}/read', [PortalNotificationController::class, 'markRead']);
     });
 });

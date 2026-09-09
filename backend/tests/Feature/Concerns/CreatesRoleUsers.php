@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Concerns;
 
+use App\Models\ArtistProfile;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -27,5 +28,17 @@ trait CreatesRoleUsers
     protected function superAdmin(): User
     {
         return $this->userWithRole(Role::SUPER_ADMIN);
+    }
+
+    /**
+     * An Artist-role user with a linked ArtistProfile — the shape every
+     * portal endpoint expects. Returns [$user, $profile].
+     */
+    protected function artistWithProfile(): array
+    {
+        $user = $this->userWithRole(Role::ARTIST);
+        $profile = ArtistProfile::factory()->create(['user_id' => $user->id]);
+
+        return [$user, $profile];
     }
 }

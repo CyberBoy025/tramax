@@ -4,7 +4,14 @@ import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/ui/dashboard-shell";
 import { useAuthGuard, logout } from "@/lib/auth";
 
-// Nav mirrors the Artist Portal sitemap in discovery.md §1.2.
+// Nav mirrors the Artist Portal sitemap in discovery.md §1.2, collapsed to
+// what actually has a backing endpoint: "Discography" and "Earnings
+// Overview" were the same data as Releases/Royalty Statements under a
+// different label, so they're merged in rather than duplicated. "Documents
+// & Contracts" is dropped — there's no Document entity in discovery.md §2's
+// data model (unlike every other screen here), so it'd be a nav link with
+// nothing real behind it; same MVP-depth judgment call as Distribution
+// being status-only elsewhere in this build.
 const navGroups = [
   {
     items: [
@@ -13,30 +20,22 @@ const navGroups = [
     ],
   },
   {
-    heading: "Catalogue",
+    heading: "Catalogue & Finance",
     items: [
       { href: "/portal/releases", label: "My Releases" },
-      { href: "/portal/catalogue", label: "Discography" },
-    ],
-  },
-  {
-    heading: "Finance",
-    items: [
-      { href: "/portal/royalty-statements", label: "Royalty Statements" },
-      { href: "/portal/earnings", label: "Earnings Overview" },
+      { href: "/portal/royalty-statements", label: "Royalty & Earnings" },
     ],
   },
   {
     heading: "More",
     items: [
-      { href: "/portal/documents", label: "Documents & Contracts" },
       { href: "/portal/bookings", label: "Bookings" },
       { href: "/portal/notifications", label: "Notifications" },
     ],
   },
 ];
 
-export default function PortalDashboardLayout({ children }: LayoutProps<"/portal/dashboard">) {
+export default function PortalProtectedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const user = useAuthGuard(["Artist"], "/portal/login");
 
