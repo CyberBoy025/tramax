@@ -1,101 +1,117 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { authGet } from "@/lib/auth";
 
-type Application = {
-  id: number;
-  full_name: string;
-  artist_name: string;
-  genre: string | null;
-  status: string;
+type Counts = Record<string, number>;
+type CountSection = { total: number; by_status: Counts };
+type RoyaltySection = { total: number; total_revenue: number; artist_share: number; by_status: Counts };
+type Summary = {
+  scope: "full" | "artist_management" | "finance";
+  artists?: CountSection;
+  applications?: CountSection;
+  releases?: CountSection;
+  events?: CountSection;
+  royalty?: RoyaltySection;
+  licensing_requests?: CountSection;
+  users?: { total: number };
 };
 
-const STATUS_TO_BADGE: Record<string, "success" | "warning" | "info" | "error"> = {
-  Accepted: "success",
-  Shortlisted: "info",
-  "Under Review": "warning",
-  Submitted: "warning",
-  Rejected: "error",
+type Product = { status: string };
+type NewsPost = { status: string };
+
+type Stat = { label: string; value: string | number };
+
+const SCOPE_LABEL: Record<Summary["scope"], string> = {
+  full: "Live from GET /api/v1/admin/reports/summary.",
+  artist_management: "Scoped to your domain (Artist Management, Catalogue, Events) — GET /api/v1/admin/reports/summary.",
+  finance: "Scoped to your domain (Royalty, Licensing) — GET /api/v1/admin/reports/summary.",
 };
+
+function naira(value: number): string {
+  return `₦${value.toLocaleString()}`;
+}
+
+function buildStatsFromSummary(summary: Summary): Stat[] {
+  const stats: Stat[] = [];
+  if (summary.applications) {
+    const byStatus = summary.applications.by_status;
+    const pending = (byStatus["Submitted"] ?? 0) + (byStatus["Under Review"] ?? 0);
+    stats.push({ label: "Pending Applications", value: pending });
+  }
+  if (summary.artists) stats.push({ label: "Artists", value: summary.artists.total });
+  if (summary.releases) stats.push({ label: "Releases", value: summary.releases.total });
+  if (summary.events) {
+    stats.push({ label: "Upcoming Events", value: summary.events.by_status["Upcoming"] ?? 0 });
+  }
+  if (summary.licensing_requests) {
+    const open = summary.licensing_requests.total - (summary.licensing_requests.by_status["Declined"] ?? 0);
+    stats.push({ label: "Open Licensing Requests", value: open });
+  }
+  if (summary.royalty) stats.push({ label: "Total Royalty Revenue", value: naira(summary.royalty.total_revenue) });
+  if (summary.users) stats.push({ label: "Users", value: summary.users.total });
+  return stats.slice(0, 4);
+}
 
 export default function AdminDashboardPage() {
-  const [applications, setApplications] = useState<Application[] | null>(null);
+  const [stats, setStats] = useState<Stat[] | null>(null);
+  const [note, setNote] = useState("");
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     document.title = "Admin Dashboard · Tramax Entertainment";
-    authGet<Application[]>("admin/applications").then(setApplications);
+
+    authGet<Summary>("admin/reports/summary").then(async (summary) => {
+      if (summary) {
+        setNote(SCOPE_LABEL[summary.scope]);
+        setStats(buildStatsFromSummary(summary));
+        setLoaded(true);
+        return;
+      }
+
+      // Content Manager has no Reports access (discovery.md §3) — fall
+      // back to their own two modules directly instead of showing nothing.
+      const [products, news] = await Promise.all([
+        authGet<Product[]>("admin/products"),
+        authGet<NewsPost[]>("admin/news"),
+      ]);
+      if (products || news) {
+        setNote("Scoped to your domain (Store, Content) — GET /api/v1/admin/products and /admin/news.");
+        setStats([
+          { label: "Published Products", value: products?.filter((p) => p.status === "Published").length ?? 0 },
+          { label: "Draft Products", value: products?.filter((p) => p.status === "Draft").length ?? 0 },
+          { label: "Published News", value: news?.filter((n) => n.status === "Published").length ?? 0 },
+          { label: "Draft News", value: news?.filter((n) => n.status === "Draft").length ?? 0 },
+        ]);
+      }
+      setLoaded(true);
+    });
   }, []);
 
-  const pending = applications?.filter((a) => a.status === "Submitted" || a.status === "Under Review").length ?? 0;
-  const accepted = applications?.filter((a) => a.status === "Accepted").length ?? 0;
+  if (!loaded) {
+    return <p className="text-sm text-[var(--color-text-secondary)]">Loading…</p>;
+  }
 
   return (
     <div>
       <h1 className="text-2xl font-semibold">Operational Summary</h1>
       <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Live from GET /api/v1/admin/applications. Only Applications, Artists, and Releases have
-        admin endpoints so far — the rest of this dashboard is still the Phase 2 wireframe.
+        {note || "Your role doesn't have summary data configured for this dashboard yet."}
       </p>
 
-      <div className="mt-[var(--space-xl)] grid grid-cols-2 gap-[var(--space-lg)] sm:grid-cols-4">
-        {[
-          { label: "Pending Applications", value: pending },
-          { label: "Accepted Applications", value: accepted },
-          { label: "Open Licensing Requests", value: "—" },
-          { label: "Upcoming Events", value: "—" },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-[var(--radius-md)] border border-[var(--color-border-default)] bg-[var(--color-bg-raised)] p-[var(--space-lg)]"
-          >
-            <p className="font-data text-2xl font-semibold">
-              {applications === null && typeof stat.value === "number" ? "…" : stat.value}
-            </p>
-            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{stat.label}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-[var(--space-xl)] overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border-default)]">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-[var(--color-border-default)] text-left text-xs uppercase tracking-[0.06em] text-[var(--color-text-secondary)]">
-              <th className="px-4 py-3 font-semibold">Applicant</th>
-              <th className="px-4 py-3 font-semibold">Artist Name</th>
-              <th className="px-4 py-3 font-semibold">Genre</th>
-              <th className="px-4 py-3 font-semibold">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {applications === null && (
-              <tr>
-                <td className="px-4 py-6 text-[var(--color-text-muted)]" colSpan={4}>
-                  Loading…
-                </td>
-              </tr>
-            )}
-            {applications?.length === 0 && (
-              <tr>
-                <td className="px-4 py-6 text-[var(--color-text-muted)]" colSpan={4}>
-                  No applications yet.
-                </td>
-              </tr>
-            )}
-            {applications?.map((app) => (
-              <tr key={app.id} className="border-b border-[var(--color-border-default)] last:border-0">
-                <td className="px-4 py-3">{app.full_name}</td>
-                <td className="px-4 py-3">{app.artist_name}</td>
-                <td className="px-4 py-3 text-[var(--color-text-secondary)]">{app.genre ?? "—"}</td>
-                <td className="px-4 py-3">
-                  <Badge status={STATUS_TO_BADGE[app.status] ?? "info"}>{app.status}</Badge>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {stats && stats.length > 0 && (
+        <div className="mt-[var(--space-xl)] grid grid-cols-2 gap-[var(--space-lg)] sm:grid-cols-4">
+          {stats.map((stat) => (
+            <div
+              key={stat.label}
+              className="rounded-[var(--radius-md)] border border-[var(--color-border-default)] bg-[var(--color-bg-raised)] p-[var(--space-lg)]"
+            >
+              <p className="font-data text-2xl font-semibold">{stat.value}</p>
+              <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
