@@ -1,8 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\ApplicationAdminController;
-use App\Http\Controllers\Api\Admin\AuditLogAdminController;
 use App\Http\Controllers\Api\Admin\ArtistAdminController;
+use App\Http\Controllers\Api\Admin\AuditLogAdminController;
 use App\Http\Controllers\Api\Admin\EventAdminController;
 use App\Http\Controllers\Api\Admin\LicensingRequestAdminController;
 use App\Http\Controllers\Api\Admin\NewsAdminController;
@@ -32,6 +32,10 @@ use Illuminate\Support\Facades\Route;
 // blanket admin gate would either over- or under-grant access.
 $artistMgmtRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::AR_MANAGER];
 $artistMgmtWrite = [Role::SUPER_ADMIN, Role::AR_MANAGER];
+// Music Catalogue / Releases is a separate matrix row from Artist Management
+// & Applications — Content Manager gets Read here (only here), so releases'
+// GET needs its own tier instead of reusing $artistMgmtRead.
+$catalogueRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::AR_MANAGER, Role::CONTENT_MANAGER];
 $rightsRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::AR_MANAGER, Role::FINANCE];
 $rightsWrite = [Role::SUPER_ADMIN, Role::AR_MANAGER];
 $royaltyRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::AR_MANAGER, Role::FINANCE];
@@ -62,8 +66,12 @@ $auditLogRead = [Role::SUPER_ADMIN, Role::MANAGEMENT];
 // ReportsAdminController::summary() branches by role to scope the data.
 $reportsRead = [Role::SUPER_ADMIN, Role::MANAGEMENT, Role::AR_MANAGER, Role::FINANCE];
 
+// Legend (discovery.md §3): "Manage" = create/read/update, no destructive
+// delete — only "Full" gets delete. Every module below with a Manage-tier
+// role therefore gates DELETE to Role::SUPER_ADMIN alone, separately from
+// that role's create/update tier.
 Route::prefix('v1')->group(function () use (
-    $artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
+    $artistMgmtRead, $artistMgmtWrite, $catalogueRead, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
     $licensingRead, $licensingWrite, $partnersRead, $partnersWrite, $eventsRead, $eventsWrite,
     $storeRead, $storeWrite, $contentRead, $contentWrite, $usersOnly, $auditLogRead, $reportsRead
 ) {
@@ -99,7 +107,7 @@ Route::prefix('v1')->group(function () use (
     // Admin platform — gated per discovery.md §3's RBAC matrix, module by
     // module. Audit Log admin endpoints are still a follow-up.
     Route::middleware('auth:sanctum')->prefix('admin')->group(function () use (
-        $artistMgmtRead, $artistMgmtWrite, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
+        $artistMgmtRead, $artistMgmtWrite, $catalogueRead, $rightsRead, $rightsWrite, $royaltyRead, $royaltyWrite,
         $licensingRead, $licensingWrite, $partnersRead, $partnersWrite, $eventsRead, $eventsWrite,
         $storeRead, $storeWrite, $contentRead, $contentWrite, $usersOnly, $auditLogRead, $reportsRead
     ) {
@@ -112,21 +120,27 @@ Route::prefix('v1')->group(function () use (
             Route::patch('applications/{application}/status', [ApplicationAdminController::class, 'updateStatus']);
         });
 
-        // Music Catalogue (discovery.md §3). Admin index/show return every
-        // status (not just Published/non-Inactive, unlike the public
+        // Music Catalogue (discovery.md §3) — its own row, separate from
+        // Artist Management: Content Manager gets Read on releases (not on
+        // artists — that stays $artistMgmtRead). Admin index/show return
+        // every status (not just Published/non-Inactive, unlike the public
         // GET /artists and /releases above) — an admin managing the
         // catalogue needs to see drafts and inactive records too.
         Route::middleware('role:'.implode(',', $artistMgmtRead))->group(function () {
             Route::get('artists', [ArtistAdminController::class, 'index']);
+        });
+        Route::middleware('role:'.implode(',', $catalogueRead))->group(function () {
             Route::get('releases', [ReleaseAdminController::class, 'index']);
         });
         Route::middleware('role:'.implode(',', $artistMgmtWrite))->group(function () {
             Route::post('artists', [ArtistAdminController::class, 'store']);
             Route::patch('artists/{artist}', [ArtistAdminController::class, 'update']);
-            Route::delete('artists/{artist}', [ArtistAdminController::class, 'destroy']);
 
             Route::post('releases', [ReleaseAdminController::class, 'store']);
             Route::patch('releases/{release}', [ReleaseAdminController::class, 'update']);
+        });
+        Route::middleware('role:'.Role::SUPER_ADMIN)->group(function () {
+            Route::delete('artists/{artist}', [ArtistAdminController::class, 'destroy']);
             Route::delete('releases/{release}', [ReleaseAdminController::class, 'destroy']);
         });
 
@@ -139,6 +153,8 @@ Route::prefix('v1')->group(function () use (
         Route::middleware('role:'.implode(',', $rightsWrite))->group(function () {
             Route::post('rights-records', [RightsRecordAdminController::class, 'store']);
             Route::patch('rights-records/{right}', [RightsRecordAdminController::class, 'update']);
+        });
+        Route::middleware('role:'.Role::SUPER_ADMIN)->group(function () {
             Route::delete('rights-records/{right}', [RightsRecordAdminController::class, 'destroy']);
         });
 
@@ -151,6 +167,8 @@ Route::prefix('v1')->group(function () use (
         Route::middleware('role:'.implode(',', $royaltyWrite))->group(function () {
             Route::post('royalty-statements', [RoyaltyStatementAdminController::class, 'store']);
             Route::patch('royalty-statements/{statement}', [RoyaltyStatementAdminController::class, 'update']);
+        });
+        Route::middleware('role:'.Role::SUPER_ADMIN)->group(function () {
             Route::delete('royalty-statements/{statement}', [RoyaltyStatementAdminController::class, 'destroy']);
         });
 
@@ -185,6 +203,8 @@ Route::prefix('v1')->group(function () use (
         Route::middleware('role:'.implode(',', $eventsWrite))->group(function () {
             Route::post('events', [EventAdminController::class, 'store']);
             Route::patch('events/{event}', [EventAdminController::class, 'update']);
+        });
+        Route::middleware('role:'.Role::SUPER_ADMIN)->group(function () {
             Route::delete('events/{event}', [EventAdminController::class, 'destroy']);
         });
 
@@ -198,6 +218,8 @@ Route::prefix('v1')->group(function () use (
         Route::middleware('role:'.implode(',', $storeWrite))->group(function () {
             Route::post('products', [ProductAdminController::class, 'store']);
             Route::patch('products/{product}', [ProductAdminController::class, 'update']);
+        });
+        Route::middleware('role:'.Role::SUPER_ADMIN)->group(function () {
             Route::delete('products/{product}', [ProductAdminController::class, 'destroy']);
         });
 
@@ -211,6 +233,8 @@ Route::prefix('v1')->group(function () use (
         Route::middleware('role:'.implode(',', $contentWrite))->group(function () {
             Route::post('news', [NewsAdminController::class, 'store']);
             Route::patch('news/{newsPost}', [NewsAdminController::class, 'update']);
+        });
+        Route::middleware('role:'.Role::SUPER_ADMIN)->group(function () {
             Route::delete('news/{newsPost}', [NewsAdminController::class, 'destroy']);
         });
 
