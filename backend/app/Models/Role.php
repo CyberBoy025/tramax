@@ -10,11 +10,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Role extends Model
 {
     public const SUPER_ADMIN = 'Super Administrator';
+
     public const MANAGEMENT = 'Management';
+
     public const AR_MANAGER = 'A&R / Artist Manager';
+
     public const FINANCE = 'Finance';
+
     public const CONTENT_MANAGER = 'Content Manager';
+
     public const ARTIST = 'Artist';
+
     public const PARTNER = 'Partner/External User';
 
     public const ALL = [

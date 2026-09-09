@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 class RightsRecordAdminController extends Controller
 {
     private const STATUSES_COPYRIGHT = ['Active', 'Disputed', 'Expired'];
+
     private const STATUSES_LICENSING = ['Unlicensed', 'Licensed', 'Exclusive'];
 
     public function index(Request $request): JsonResponse

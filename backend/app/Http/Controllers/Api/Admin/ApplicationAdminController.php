@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ArtistApplication;
+use App\Models\ArtistProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 // Gated to Super Administrator + A&R / Artist Manager per discovery.md §3
 // ("Artist Management" row) via the 'role' middleware on routes/api.php.
@@ -40,8 +42,8 @@ class ApplicationAdminController extends Controller
         // Accepting an application provisions the artist's public profile —
         // the hand-off point between "Artist Management" and the live catalogue.
         if ($data['status'] === 'Accepted') {
-            \App\Models\ArtistProfile::firstOrCreate(
-                ['slug' => \Illuminate\Support\Str::slug($application->artist_name)],
+            ArtistProfile::firstOrCreate(
+                ['slug' => Str::slug($application->artist_name)],
                 [
                     'artist_name' => $application->artist_name,
                     'genre' => $application->genre,
