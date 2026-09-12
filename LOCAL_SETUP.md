@@ -1,6 +1,6 @@
 # Local Development Setup — XAMPP
 
-How to run the Tramax backend locally against XAMPP (Apache + MariaDB) and the frontend against Next.js's own dev server. Written for this machine's XAMPP install at `C:\xampp`; adjust paths if yours differs.
+How to run Tramax locally against XAMPP (Apache + MariaDB). Tramax is a single Laravel application — Blade views, served entirely by Apache/PHP — so there's no separate frontend dev server to run alongside it; Node/npm are only used to compile front-end assets (Laravel Mix). Written for this machine's XAMPP install at `C:\xampp`; adjust paths if yours differs.
 
 ## 1. One-time setup
 
@@ -24,7 +24,7 @@ A `tramax` database already exists in the local MariaDB instance (`utf8mb4_unico
 `C:\xampp\apache\conf\extra\httpd-vhosts.conf` now defines two vhosts:
 
 - A default catch-all so `http://localhost/` still serves `C:\xampp\htdocs` (the XAMPP dashboard and any other local projects there) — required once any named vhost exists, or Apache would otherwise serve the first vhost for every request.
-- `tramax.local`, `DocumentRoot` pointed at `backend/public` **inside this repo** (not copied into `htdocs`), so the working tree stays exactly what's in git.
+- `tramax.local`, `DocumentRoot` pointed at `C:\xampp\htdocs\tramax\backend\public` — the project lives directly under `htdocs` (moved there so it's exactly where XAMPP expects local projects, rather than the earlier setup which served it from an path outside `htdocs`).
 
 ### 1.4 Hosts file — the one step that needs your own admin action
 
@@ -61,16 +61,16 @@ php artisan migrate         # first time, and after new migrations
 
 Then visit `http://tramax.local/`.
 
-### 2.3 Frontend (Next.js)
+### 2.3 Front-end assets (Laravel Mix)
 
-Unrelated to XAMPP — runs on its own dev server:
+Also unrelated to XAMPP, but doesn't need its own server — it just watches `resources/js`/`resources/sass` and rewrites `public/js/app.js` / `public/css/app.css` on save. Apache serves those compiled files directly, same as any other static asset:
 
 ```powershell
-cd tramax\frontend
-npm run dev
+cd tramax\backend
+npm run watch
 ```
 
-Visit `http://localhost:3000/`.
+Or `npm run build` for a one-off compile (no watching) — needed once after a fresh clone, before `http://tramax.local/` will have any styling at all.
 
 ## 3. Day-to-day
 
@@ -81,7 +81,8 @@ Visit `http://localhost:3000/`.
 | New model | `php artisan make:model X -mcr` |
 | Tinker (REPL) | `php artisan tinker` |
 | Install a PHP package | `composer require vendor/package` |
-| Install a JS package | `npm install package` (in `frontend/`) |
+| Install a JS package | `npm install package` (in `backend/`) |
+| Rebuild front-end assets once | `npm run build` (in `backend/`) |
 
 ## 4. Notes specific to this machine
 

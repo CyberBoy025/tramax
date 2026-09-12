@@ -1,9 +1,8 @@
 # Staging Deployment — cPanel Shared Hosting
 
-How to deploy Tramax to staging on a cPanel account with PHP, MySQL, SSH/Terminal access, and Node.js App (Passenger) support.
+How to deploy Tramax to staging on a cPanel account with PHP, MySQL, and SSH/Terminal access.
 
-- Backend (Laravel API): `https://api-staging.tramaxentertainment.com`
-- Frontend (Next.js): `https://staging.tramaxentertainment.com`
+Tramax is a single Laravel application — the admin platform, artist portal, and public marketing site are all server-rendered Blade views served by PHP. There is **no separate frontend app and no persistent Node.js process in production**: Node/npm are needed only once, at build time, to compile front-end assets (Laravel Mix) into plain `.css`/`.js` files that Apache/PHP then serve like any other static file.
 
 This is a manual runbook, not an automated pipeline — I have no access to your hosting account, so every step here is something you run yourself over SSH or click in cPanel. Re-run the "Deploying an update" section at the bottom whenever you want to push new commits to staging.
 
@@ -12,18 +11,19 @@ This is a manual runbook, not an automated pipeline — I have no access to your
 ## 0. Before you start
 
 - [ ] Confirm PHP 8.2+ is available (`composer.json` requires `^8.2`). Check cPanel's **MultiPHP Manager**.
-- [ ] Confirm your cPanel plan's Node.js version is 18.18+ (ideally 20 or later) — check **Setup Node.js App**'s version dropdown.
+- [ ] Confirm Node.js 18+ is reachable over SSH, just to run the one-time/per-deploy asset build (`npm run build`) — it does not need to stay running afterward. If your host doesn't have `node`/`npm` on the system PATH, cPanel's **Setup Node.js App** page still has an "Enter to the virtual environment" command that puts a Node binary on PATH for your SSH session without you needing to actually create a persistent Node "app" there.
 - [ ] Have the repo URL handy: `https://github.com/CyberBoy025/tramax.git`. If the repo is private, generate a GitHub [personal access token](https://github.com/settings/tokens) (classic, `repo` scope) first — you'll clone with `https://<token>@github.com/CyberBoy025/tramax.git` instead of the plain URL.
 - [ ] SSH into the account once to confirm access: `ssh <cpanel_user>@<your_server_host>`.
 
 ---
 
-## 1. Create the two subdomains
+## 1. Create the subdomain
 
 In cPanel → **Domains** (or **Subdomains** on older cPanel themes):
 
-1. Create `api-staging.tramaxentertainment.com`. When it asks for a document root, **do not accept the default** — you'll repoint it in step 3 once the code exists, since Laravel's document root must be `backend/public`, not the repo root (everything else — `.env`, `app/`, `vendor/` — must never be web-accessible).
-2. Create `staging.tramaxentertainment.com`. Its document root doesn't matter — the Node.js App in step 5 serves this domain directly via Passenger, bypassing the static document root entirely.
+1. Create `staging.tramaxentertainment.com`. When it asks for a document root, **do not accept the default** — you'll repoint it in step 3.1 once the code exists, since Laravel's document root must be `backend/public`, not the repo root (everything else — `.env`, `app/`, `vendor/` — must never be web-accessible).
+
+Only one subdomain is needed now — the admin platform (`/admin`), artist portal (`/portal`), and public site (`/`) are all the same Laravel app. The Sanctum token API (`/api/v1/*`) lives on this same domain too, for any external client that wants it (a mobile app, etc.) — it no longer needs a separate `api-staging` subdomain to talk to a separately-hosted frontend, since there is no separately-hosted frontend anymore.
 
 ---
 
@@ -37,7 +37,7 @@ cPanel → **MySQL® Databases**:
 
 ---
 
-## 3. Deploy the backend (Laravel)
+## 3. Deploy the application
 
 SSH in, then:
 
@@ -49,7 +49,7 @@ cd tramax/backend
 
 ### 3.1 Point the subdomain at `backend/public`
 
-Back in cPanel → **Domains**, edit `api-staging.tramaxentertainment.com` and set its document root to:
+Back in cPanel → **Domains**, edit `staging.tramaxentertainment.com` and set its document root to:
 
 ```
 /home/<cpanel_user>/tramax/backend/public
@@ -59,11 +59,11 @@ Back in cPanel → **Domains**, edit `api-staging.tramaxentertainment.com` and s
 
 ### 3.2 Select PHP 8.2+ for the subdomain
 
-cPanel → **MultiPHP Manager** → select `api-staging.tramaxentertainment.com` → set to PHP 8.2 or later.
+cPanel → **MultiPHP Manager** → select `staging.tramaxentertainment.com` → set to PHP 8.2 or later.
 
 Confirm the SSH `php` binary matches — `php -v`. If it doesn't (shared hosts sometimes default SSH to an older PHP), use the versioned binary cPanel provides instead, e.g. `php82`, for every command below (`php82 artisan ...`, `php82 /usr/local/bin/composer install`, etc.) — check `ls /usr/local/bin/ | grep php`, or your host's docs, for the exact name.
 
-### 3.3 Install dependencies
+### 3.3 Install PHP dependencies
 
 ```bash
 composer install --no-dev --optimize-autoloader
@@ -82,7 +82,7 @@ Edit `.env` (via `nano .env`, `vi .env`, or cPanel's File Manager) and set:
 ```
 APP_ENV=staging
 APP_DEBUG=false
-APP_URL=https://api-staging.tramaxentertainment.com
+APP_URL=https://staging.tramaxentertainment.com
 
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
@@ -90,11 +90,11 @@ DB_PORT=3306
 DB_DATABASE=<cpanel_user>_tramax_staging
 DB_USERNAME=<the database user from step 2>
 DB_PASSWORD=<that user's password>
-
-CORS_ALLOWED_ORIGINS=https://staging.tramaxentertainment.com
 ```
 
 `APP_DEBUG=false` is not optional — with it `true`, unhandled errors dump full stack traces (file paths, query text) to anyone who hits a broken endpoint. Leave the rest (`SESSION_DRIVER=database`, `CACHE_STORE=database`, `QUEUE_CONNECTION=database`, `MAIL_MAILER=log`) as `.env.example` already has them — no Redis or external mail service needed for staging.
+
+`CORS_ALLOWED_ORIGINS` only matters if some *other* site or app calls `/api/v1/*` directly from a browser — the Blade admin/portal/public UI is served same-origin and never hits CORS at all. Leave it unset unless you have a specific external API consumer in mind.
 
 Then:
 
@@ -137,70 +137,31 @@ chmod -R 775 storage bootstrap/cache
 
 The media upload pipeline writes into `storage/app/public`; without the symlink, uploaded images 404 even though the upload itself succeeds.
 
-### 3.7 Smoke-test the backend
+### 3.7 Build front-end assets (Laravel Mix)
 
-```bash
-curl -s https://api-staging.tramaxentertainment.com/api/v1/artists
-```
-
-Should return `{"data":[]}` (empty is correct — nothing's been created yet) rather than an error page.
-
----
-
-## 4. Deploy the frontend (Next.js) — build first
-
-Still over SSH:
-
-```bash
-cd ~/tramax/frontend
-```
-
-### 4.1 Set the API URL before building
-
-This matters more than it sounds: `NEXT_PUBLIC_API_URL` gets baked into the JavaScript bundle **at build time**, not read at runtime. Setting it in cPanel's Node.js App environment-variables panel *after* building has no effect — the build has to see it first.
-
-```bash
-echo "NEXT_PUBLIC_API_URL=https://api-staging.tramaxentertainment.com/api/v1" > .env.production
-```
-
-### 4.2 Install and build
-
-cPanel's Node.js App (set up next, in section 5) gives you a "Run NPM Install" button, but you can also do this now directly if the account already has a usable Node on PATH:
+Still inside `tramax/backend`:
 
 ```bash
 npm ci
 npm run build
 ```
 
-If `npm`/`node` aren't on PATH over plain SSH, do steps 5.1–5.2 first (which creates the Node virtual environment and shows you the `source .../activate` command), then come back and run `npm ci && npm run build` from inside that activated environment.
+This is the only thing Node.js is used for. It compiles `resources/js/app.js` and `resources/sass/app.scss` into `public/js/app.js` and `public/css/app.css`, which Apache then serves as plain static files — nothing Node-related needs to keep running afterward, and there's no cPanel "Setup Node.js App" entry to create for this project at all.
+
+### 3.8 Smoke-test the app
+
+```bash
+curl -s https://staging.tramaxentertainment.com/
+curl -s https://staging.tramaxentertainment.com/api/v1/artists
+```
+
+The first should return the public homepage's HTML; the second should return `{"data":[]}` (empty is correct — nothing's been created yet) rather than an error page. Then visit `https://staging.tramaxentertainment.com/admin/login` in a browser and sign in with the account from step 3.5.
 
 ---
 
-## 5. Deploy the frontend — Passenger app
+## 4. SSL
 
-cPanel → **Setup Node.js App** → **Create Application**:
-
-- **Node.js version**: highest available (20+).
-- **Application mode**: Production.
-- **Application root**: `tramax/frontend` (relative to your home directory).
-- **Application URL**: `staging.tramaxentertainment.com`.
-- **Application startup file**: `server.js`.
-
-`server.js` (already in the repo) exists specifically for this — Passenger requires a file that calls `.listen()` directly; it has no way to run `next start` or an npm script itself. It wraps Next.js's programmatic API and listens on whatever port Passenger assigns via `process.env.PORT`. Verified locally against a real production build before this was written.
-
-Environment variables (in the same cPanel screen, under the app's settings): add `NEXT_PUBLIC_API_URL` here too, matching `.env.production` from step 4.1 — belt-and-suspenders in case this specific cPanel version treats it differently. Redundant, not harmful.
-
-Steps 4.1–4.2 already installed and built the app; in the Node.js App panel, click **Restart** to launch (or relaunch) the Passenger process against that build.
-
-### 5.1 Smoke-test the frontend
-
-Visit `https://staging.tramaxentertainment.com/` in a browser. Then `https://staging.tramaxentertainment.com/admin/login` and sign in with the account from step 3.5 — confirms the frontend is actually reaching the backend across the two subdomains (this is what the CORS config in `config/cors.php` and the `CORS_ALLOWED_ORIGINS` env var from step 3.4 exist for).
-
----
-
-## 6. SSL
-
-cPanel almost always offers free AutoSSL (Let's Encrypt) — cPanel → **SSL/TLS Status** → select both subdomains → **Run AutoSSL**. Do this before sharing the staging link with anyone; without it, browsers will hard-block the Bearer-token login flow as mixed content if either side loads over plain HTTP while the other is HTTPS.
+cPanel almost always offers free AutoSSL (Let's Encrypt) — cPanel → **SSL/TLS Status** → select the subdomain → **Run AutoSSL**. Do this before sharing the staging link with anyone.
 
 ---
 
@@ -209,20 +170,17 @@ cPanel almost always offers free AutoSSL (Let's Encrypt) — cPanel → **SSL/TL
 Once the above is done once, pushing new commits to staging is much shorter:
 
 ```bash
-cd ~/tramax
+cd ~/tramax/backend
 git pull origin main
 
-cd backend
 composer install --no-dev --optimize-autoloader
-php artisan migrate --force
-php artisan config:clear
-
-cd ../frontend
 npm ci
 npm run build
+php artisan migrate --force
+php artisan config:clear
 ```
 
-Then in cPanel → **Setup Node.js App**, click **Restart** on the frontend app — the backend needs no restart (PHP is invoked fresh per request by the web server, not a long-running process like the frontend).
+Nothing needs restarting afterward — PHP is invoked fresh per request by the web server (not a long-running process), and the asset build just overwrites the static files in `public/js` and `public/css`.
 
 ---
 

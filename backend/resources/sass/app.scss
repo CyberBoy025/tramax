@@ -1,0 +1,469 @@
+// Bootstrap gives structural primitives (grid, forms, buttons-as-base,
+// dropdown/modal/collapse JS behaviour) — the actual visual identity comes
+// from the design tokens below, ported verbatim from the Next.js frontend's
+// globals.css (per Conversion-README.md §11: "technology conversion without
+// unnecessary visual redesign"). Deliberately not re-theming Bootstrap's own
+// Sass variables — overriding on top of the default import is simpler and
+// keeps this file a straight port instead of a parallel token system.
+@import "~bootstrap/scss/bootstrap";
+
+// ---- Design tokens (source: frontend/src/app/globals.css) ----
+:root {
+  // Color
+  --color-bg-base: #0d0e0c;
+  --color-bg-raised: #171815;
+  --color-bg-sunken: #0a0b09;
+  --color-bg-inverse: #f6f4ec;
+  --color-accent-primary: #d9542e;
+  --color-accent-on-accent: #0d0e0c;
+  --color-accent-secondary: #c7e86b;
+  --color-text-primary: #f3f1e9;
+  --color-text-secondary: #a6a79c;
+  --color-text-muted: #6e6f65;
+  --color-text-on-light: #111210;
+  --color-border-default: #2a2b26;
+  --color-border-strong: #3e4038;
+  --color-state-success: #7fbe5a;
+  --color-state-warning: #e0a83c;
+  --color-state-error: #d9483b;
+  --color-state-info: #5b9bd1;
+
+  // Spacing
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+  --space-4xl: 96px;
+  --space-5xl: 128px;
+
+  // Radius
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  // Elevation
+  --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.24);
+  --elevation-2: 0 8px 24px rgba(0, 0, 0, 0.32);
+
+  // Motion
+  --motion-fast: 120ms ease-out;
+  --motion-normal: 200ms ease-out;
+  --motion-slow: 320ms ease-in-out;
+
+  // Layout
+  --layout-container-max: 1280px;
+
+  // Fonts — loaded as regular @font-face/<link> Google Fonts in the Blade
+  // layout (see resources/views/layouts/partials/head.blade.php), not
+  // next/font; these just name the CSS variables the rest of the app reads.
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-accent: "Newsreader", ui-serif, Georgia, serif;
+  --font-data: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+// Admin Platform & Artist Portal density override, per ui.md
+[data-surface="operational"] {
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+  --space-4xl: 48px;
+}
+
+body {
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  text-wrap: balance;
+}
+
+.font-accent {
+  font-family: var(--font-accent);
+  font-style: italic;
+}
+
+.font-data {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+// ---- Dashboard shell (Admin + Portal) — ports components/ui/dashboard-shell.tsx ----
+.dashboard-shell {
+  display: flex;
+  min-height: 100vh;
+
+  &__sidebar {
+    display: flex;
+    width: 16rem;
+    flex-shrink: 0;
+    flex-direction: column;
+    border-right: 1px solid var(--color-border-default);
+    background: var(--color-bg-raised);
+    padding: var(--space-lg);
+  }
+
+  &__brand {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  &__nav {
+    margin-top: var(--space-xl);
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--space-lg);
+  }
+
+  &__nav-heading {
+    margin-bottom: 0.25rem;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
+  }
+
+  &__nav-link {
+    display: block;
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    transition: color var(--motion-fast), background-color var(--motion-fast);
+
+    &:hover {
+      background: var(--color-bg-base);
+      color: var(--color-text-primary);
+    }
+
+    &.is-active {
+      background: var(--color-bg-base);
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border-top: 1px solid var(--color-border-default);
+    padding-top: var(--space-md);
+  }
+
+  &__user-label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  &__logout {
+    align-self: flex-start;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-accent-primary);
+    background: none;
+    border: none;
+    padding: 0;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &__main {
+    flex: 1 1 auto;
+    padding: var(--space-2xl);
+  }
+}
+
+// ---- Stat card / table conventions shared across admin + portal pages ----
+.stat-card {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-raised);
+  padding: var(--space-lg);
+
+  &__value {
+    font-family: var(--font-data);
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  &__label {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+  }
+
+  // Portal notifications — unread state (ports the accent-tinted card from
+  // frontend/src/app/portal/(protected)/notifications/page.tsx).
+  &--unread {
+    border-color: rgba(217, 84, 46, 0.4);
+    background: rgba(217, 84, 46, 0.05);
+  }
+}
+
+.data-table {
+  width: 100%;
+  font-size: 0.875rem;
+
+  th {
+    border-bottom: 1px solid var(--color-border-default);
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-secondary);
+  }
+
+  td {
+    border-bottom: 1px solid var(--color-border-default);
+    padding: 0.75rem 1rem;
+  }
+
+  tr:last-child td {
+    border-bottom: 0;
+  }
+}
+
+// ---- Brand accent overrides on top of Bootstrap's default component
+// colours (kept as plain Bootstrap otherwise, deliberately not re-themed
+// at the Sass-variable level — see the note at the top of this file). ----
+.btn-primary {
+  --bs-btn-bg: var(--color-accent-primary);
+  --bs-btn-border-color: var(--color-accent-primary);
+  --bs-btn-hover-bg: #c04a29;
+  --bs-btn-hover-border-color: #c04a29;
+  --bs-btn-active-bg: #c04a29;
+  --bs-btn-active-border-color: #c04a29;
+  --bs-btn-color: var(--color-accent-on-accent);
+  --bs-btn-hover-color: var(--color-accent-on-accent);
+}
+
+.form-control:focus {
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 0 0.25rem rgba(217, 84, 46, 0.25);
+}
+
+a {
+  color: var(--color-accent-primary);
+}
+
+// ---- Public marketing site — ports site-header.tsx, site-footer.tsx,
+// kicker.tsx, card.tsx, and the max-w-(--layout-container-max) px-6
+// section convention used across every frontend/src/app/(marketing) page. ----
+.site-container {
+  max-width: var(--layout-container-max);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  margin: 1rem auto 0;
+  width: calc(100% - 2rem);
+  max-width: var(--layout-container-max);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-default);
+  background: rgba(23, 24, 21, 0.85);
+  padding: 0.75rem 1.5rem;
+  backdrop-filter: blur(8px);
+
+  &__brand {
+    font-family: var(--font-display);
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    text-decoration: none;
+  }
+
+  &__nav {
+    display: none;
+    align-items: center;
+    gap: 1.5rem;
+
+    @media (min-width: 768px) {
+      display: flex;
+    }
+  }
+
+  &__nav-link {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    transition: color var(--motion-fast);
+
+    &:hover {
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__cta {
+    display: none;
+
+    @media (min-width: 640px) {
+      display: inline-flex;
+    }
+  }
+}
+
+.site-footer {
+  margin-top: auto;
+  background: var(--color-bg-sunken);
+  padding: var(--space-4xl) 1.5rem;
+
+  &__grid {
+    max-width: var(--layout-container-max);
+    margin: 0 auto;
+    display: grid;
+    gap: var(--space-2xl);
+    grid-template-columns: 1fr;
+
+    @media (min-width: 640px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media (min-width: 768px) {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  &__brand {
+    font-family: var(--font-display);
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+
+  &__heading {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
+  }
+
+  &__link {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__bottom {
+    max-width: var(--layout-container-max);
+    margin: var(--space-3xl) auto 0;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+}
+
+.kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
+
+  &__dot {
+    height: 0.375rem;
+    width: 0.375rem;
+    flex-shrink: 0;
+    background: var(--color-accent-primary);
+  }
+}
+
+.content-card {
+  display: block;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-raised);
+  padding: var(--space-lg);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--motion-fast);
+
+  &:hover {
+    border-color: var(--color-border-strong);
+    text-decoration: none;
+    color: inherit;
+  }
+
+  &__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+
+  &__meta {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+  }
+}
+
+.hero-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--color-border-strong);
+  background: var(--color-bg-raised);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  &--success { background: rgba(127, 190, 90, 0.16); color: var(--color-state-success); }
+  &--warning { background: rgba(224, 168, 60, 0.16); color: var(--color-state-warning); }
+  &--error   { background: rgba(217, 72, 59, 0.16); color: var(--color-state-error); }
+  &--info    { background: rgba(91, 155, 209, 0.16); color: var(--color-state-info); }
+}

@@ -18,7 +18,11 @@ class EnsureUserHasRole
         $user = $request->user();
 
         if (! $user || ! $user->hasRole(...$roles)) {
-            return response()->json(['message' => 'Forbidden — insufficient role.'], 403);
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Forbidden — insufficient role.'], 403);
+            }
+
+            abort(403, 'Your role doesn\'t have access to this page.');
         }
 
         return $next($request);
